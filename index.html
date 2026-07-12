@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Field Kit v1.68</title>
+<title>Field Kit v1.70</title>
 <meta name="theme-color" content="#14161A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -370,7 +370,7 @@
   </section>
   <section class="card setup-card">
     <h3>About</h3>
-    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.68</span></div>
+    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.70</span></div>
     <div class="setrow"><span class="k">Weather</span><span class="mono">Open-Meteo &middot; no key</span></div>
     <div class="setrow"><span class="k">Place name</span><span class="mono">BigDataCloud</span></div>
     <div class="setrow"><span class="k">Gear specs</span><span class="mono">Claude &middot; your key</span></div>
@@ -1166,7 +1166,7 @@ async function streamAdvisor(endpoint, q){
         var nl=parts[i].indexOf('\n');
         if(nl<0){ break; }                        // control line not complete yet
         var ctrl=parts[i].slice(0,nl); text+=parts[i].slice(nl+1);
-        try{ var o=JSON.parse(ctrl); if(o.status==='searching') status='Looking up '+(o.query?('\u201C'+o.query+'\u201D'):'specs')+'\u2026'; else if(o.status==='reading') status='Reading results\u2026'; else if(o.status==='empty') status=''; }catch(_){}
+        try{ var o=JSON.parse(ctrl); if(o.status==='thinking') status='Claude is thinking\u2026'; else if(o.status==='searching') status='Looking up '+(o.query?('\u201C'+o.query+'\u201D'):'specs')+'\u2026'; else if(o.status==='reading') status='Reading results\u2026'; else if(o.status==='empty') status=''; }catch(_){}
       }
       var head = (!text.trim() && status) ? '<span class="spinner sm"></span> '+esc(status)+'\n\n' : '';
       el.innerHTML = head + esc(text);

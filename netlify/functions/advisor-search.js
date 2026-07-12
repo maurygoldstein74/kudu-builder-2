@@ -51,8 +51,9 @@ export default async (req) => {
       headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 1500,
+        max_tokens: 2048,
         stream: true,
+        thinking: { type: "disabled" },
         system: buildSystem(owned),
         messages: [{ role: "user", content: question }],
         tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }]

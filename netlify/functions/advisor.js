@@ -6,6 +6,7 @@
 
 const PRIMARY_MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
 const FALLBACK_MODEL = "claude-sonnet-4-6";  // broadly-available stable ID if primary is not provisioned
+const US = "\u241F"; // control-line marker (thinking status), stripped by the client
 
 function buildSystem(owned) {
   return [
@@ -48,8 +49,10 @@ export default async (req) => {
       headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
         model: model,
-        max_tokens: 1024,
+        max_tokens: 8000,                       // big budget: thinking + a full answer, never truncates
         stream: true,
+        thinking: { type: "adaptive" },         // reason first for better comparison/judgment answers
+        output_config: { effort: "medium" },    // medium ~= Sonnet 4.6 high; strong reasoning, leaves room to answer in the 10s window
         system: buildSystem(owned),
         messages: [{ role: "user", content: question }]
       })
@@ -102,7 +105,9 @@ export default async (req) => {
             if (data === "[DONE]") continue;
             let evt;
             try { evt = JSON.parse(data); } catch (e) { continue; }
-            if (evt.type === "content_block_delta" && evt.delta && evt.delta.type === "text_delta") {
+            if (evt.type === "content_block_start" && evt.content_block && evt.content_block.type === "thinking") {
+              controller.enqueue(encoder.encode(US + JSON.stringify({ status: "thinking" }) + "\n"));
+            } else if (evt.type === "content_block_delta" && evt.delta && evt.delta.type === "text_delta") {
               gotText = true;
               controller.enqueue(encoder.encode(evt.delta.text));
             } else if (evt.type === "error" || (evt.error && evt.error.message)) {
