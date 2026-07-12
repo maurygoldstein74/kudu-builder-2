@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Field Kit v1.55</title>
+<title>Field Kit v1.59</title>
 <meta name="theme-color" content="#14161A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -370,7 +370,7 @@
   </section>
   <section class="card setup-card">
     <h3>About</h3>
-    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.55</span></div>
+    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.59</span></div>
     <div class="setrow"><span class="k">Weather</span><span class="mono">Open-Meteo &middot; no key</span></div>
     <div class="setrow"><span class="k">Place name</span><span class="mono">BigDataCloud</span></div>
     <div class="setrow"><span class="k">Gear specs</span><span class="mono">Claude &middot; your key</span></div>
@@ -771,22 +771,33 @@ function catName(txt){
   return null; // non-gear label (ball cap, face net, waders cover it, none)
 }
 function isPacked(name){ return tripSet.indexOf(name)>=0; }
-function closestPacked(catalogName, dressF){
-  // find a packed item in the same category, nearest by temp-range midpoint to dressF
+function closestPacked(catalogName, dressF, force){
+  // find a packed item in the same category, nearest by temp-range midpoint to dressF.
+  // force=true (essential slots): always return nearest packed piece + how far off it runs.
   var gear=allGear(); var ref=null;
   for(var i=0;i<gear.length;i++){ if(gear[i].name===catalogName){ ref=gear[i]; break; } }
   if(!ref) return null;
   var pool=gear.filter(function(g){ return g.cat===ref.cat && isPacked(g.name) && g.tmin!=null; });
   if(!pool.length) return null;
   pool.sort(function(a,b){ return Math.abs((a.tmin+a.tmax)/2-dressF)-Math.abs((b.tmin+b.tmax)/2-dressF); });
-  // only offer if it actually covers near this temp (within 12 deg of its range)
-  var c=pool[0]; if(dressF < c.tmin-12 || dressF > c.tmax+12) return null;
-  return c.name;
+  var c=pool[0];
+  var off = dressF>c.tmax ? Math.round(dressF-c.tmax) : (dressF<c.tmin ? Math.round(dressF-c.tmin) : 0);
+  if(!force && (dressF < c.tmin-12 || dressF > c.tmax+12)) return null;
+  return {name:c.name, off:off};  // off: + = too warm for it, - = too cold, 0 = in range
+}
+// slots you will always be wearing something in - never allow an empty/GAP here
+var ESSENTIAL_SLOTS={'Base Top':1,'Legs':1};
+function offNote(off){
+  if(off===0) return 'closest you packed';
+  var a=Math.abs(off);
+  return off>0 ? ('closest you packed \u2014 runs ~'+a+'\u00B0 warm') : ('closest you packed \u2014 ~'+a+'\u00B0 light for this');
 }
 function applyTrip(rec){
   if(!tripOn) return;
   var dressF=rec.dress;
+  var borrowedMid=null;   // the mid piece pulled up to serve as Base Top, if any
   rec.slots.forEach(function(sl){
+    var essential=!!ESSENTIAL_SLOTS[sl.k];
     var out=[]; var anyReal=false; var anyKept=false;
     sl.items.forEach(function(it){
       if(it.none){ out.push(it); return; }
@@ -794,24 +805,42 @@ function applyTrip(rec){
       if(cn===null){ out.push(it); return; }          // non-gear label: always available
       anyReal=true;
       if(isPacked(cn)){ out.push(it); anyKept=true; return; }  // packed: keep as-is
-      // not packed: try closest packed alternative in this slot
-      var alt=closestPacked(cn, dressF);
+      var alt=closestPacked(cn, dressF, essential); // essential slots force a pick
       if(alt){
-        // skip if this substitute (or the original piece) is already shown in this slot
-        var dup=out.some(function(x){ return x.txt===alt; });
-        if(!dup){ out.push(Object.assign({},it,{txt:alt, sub:'closest you packed', custom:false, opt:false, gap:false})); anyKept=true; }
+        var dup=out.some(function(x){ return x.txt===alt.name; });
+        if(!dup){ out.push(Object.assign({},it,{txt:alt.name, sub:offNote(alt.off), custom:false, opt:false, gap:false})); anyKept=true; }
       }
-      // else: drop this item (do not show gear left at home)
     });
-    // final dedupe by txt (guards any remaining collisions from packed originals)
     var seen={}; out=out.filter(function(x){ if(x.none||x.gap) return true; if(seen[x.txt]) return false; seen[x.txt]=1; return true; });
-    // gap only if there were real gear items, none kept, AND no non-gear label survived to show
     var hasLabel=out.some(function(x){ return !x.none && !x.gap; });
-    if(anyReal && !anyKept && !hasLabel){ out=[{txt:'nothing packed for this', gap:true}]; }
+    if(essential && !anyKept){
+      // essential slot with nothing matched even by force -> grab ANY packed piece of that slot's category
+      var any=firstPackedForSlot(sl.k);
+      if(any){ out=[{txt:any, sub:'only option you packed'}]; anyKept=true; }
+      else {
+        // torso rule: a Base Top can be covered by a packed Mid, and a Mid by a packed base/shirt.
+        var cover = (sl.k==='Base Top') ? firstPackedForSlot('Mid') : null;
+        if(cover){ out=[{txt:cover, sub:'your only packed top \u2014 wear it next to skin'}]; anyKept=true; borrowedMid=cover; }
+        else { out=[{txt:'nothing packed \u2014 you need a top', gap:true}]; }
+      }
+    }
+    else if(anyReal && !anyKept && !hasLabel){ out=[{txt:'nothing packed for this', gap:true}]; }
     else if(anyReal && !anyKept && hasLabel){ out.push({txt:'nothing else packed', gap:true}); }
     else if(!out.length){ out=[{txt:'\u2014', none:true}]; }
+    // collapse the duplicate: if a mid was pulled up to cover Base Top, do not also show it as the Mid
+    if(sl.k==='Mid' && borrowedMid){
+      out=out.filter(function(x){ return x.txt!==borrowedMid; });
+      if(!out.some(function(x){ return !x.none; })) out=[{txt:'your top covers it', none:true}];
+    }
     sl.items=out;
   });
+}
+// map a slot label to the catalog categories that fill it, and return the first packed such piece
+function firstPackedForSlot(slotK){
+  var map={'Base Top':['base','shirt'],'Base Btm':['base'],'Mid':['mid'],'Insul':['insulation'],'Shell':['shell','softshell'],'Legs':['pant','wader'],'Head':['headwear'],'Hands':['gloves'],'Feet':['boots'],'Vest':['accessory']};
+  var cats=map[slotK]||[]; var gear=allGear();
+  for(var i=0;i<gear.length;i++){ if(cats.indexOf(gear[i].cat)>=0 && isPacked(gear[i].name)) return gear[i].name; }
+  return null;
 }
 function integrateCustom(rec){
   const dress=rec.dress;
