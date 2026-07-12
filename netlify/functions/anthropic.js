@@ -40,6 +40,42 @@ exports.handler = async (event) => {
   if (!key)
     return { statusCode: 500, headers, body: JSON.stringify({ error: "ANTHROPIC_API_KEY not set in Netlify" }) };
 
+  // ---- Advisor mode: free-form question about gear fit / logic ----
+  if (payload.ask) {
+    const question = payload.ask.toString().slice(0, 1500).trim();
+    const owned = (payload.owned || "").toString().slice(0, 4000);
+    const advSystem = [
+      "You are a gear advisor for a whitetail / upland / waterfowl hunting layering app.",
+      "The user owns the gear listed below. Answer their question grounded in what they own.",
+      "When they ask about a NEW piece, say plainly whether it fills a real gap or duplicates something they already have, and at what temperature/discipline it would slot in.",
+      "When they ask about the app's logic, explain the reasoning (layering physics, quiet fabrics for close range, waterproof vs wind-resistant, outer-fit insulation not going under a shell).",
+      "Be direct and opinionated. Prefer buy-once-cry-once. Do not recommend buying gear that duplicates what they own. Keep answers tight — a few short paragraphs, no filler.",
+      "You may use web search to verify specs of a specific product before judging fit.",
+      "\nUSER'S OWNED GEAR:\n" + owned
+    ].join("\n");
+    const abody = {
+      model: MODEL, max_tokens: 1024, system: advSystem,
+      messages: [{ role: "user", content: question }],
+      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }]
+    };
+    try {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+        body: JSON.stringify(abody)
+      });
+      const d = await r.json();
+      if (!r.ok) {
+        const msg = (d && d.error && d.error.message) || ("HTTP " + r.status);
+        return { statusCode: 502, headers, body: JSON.stringify({ error: msg }) };
+      }
+      const answer = (d.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+      return { statusCode: 200, headers, body: JSON.stringify({ answer }) };
+    } catch (e) {
+      return { statusCode: 502, headers, body: JSON.stringify({ error: "Upstream request failed: " + (e && e.message || e) }) };
+    }
+  }
+
   const name = (payload.name || "").toString().slice(0, 120).trim();
   if (!name)
     return { statusCode: 400, headers, body: JSON.stringify({ error: "No item name provided" }) };
