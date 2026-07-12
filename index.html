@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Field Kit v1.62</title>
+<title>Field Kit v1.65</title>
 <meta name="theme-color" content="#14161A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -370,7 +370,7 @@
   </section>
   <section class="card setup-card">
     <h3>About</h3>
-    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.62</span></div>
+    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.65</span></div>
     <div class="setrow"><span class="k">Weather</span><span class="mono">Open-Meteo &middot; no key</span></div>
     <div class="setrow"><span class="k">Place name</span><span class="mono">BigDataCloud</span></div>
     <div class="setrow"><span class="k">Gear specs</span><span class="mono">Claude &middot; your key</span></div>
@@ -796,11 +796,36 @@ function applyTrip(rec){
   if(!tripOn) return;
   var dressF=rec.dress;
   var borrowedMid=null;   // the mid piece pulled up to serve as Base Top, if any
+  // Waterfowl-without-waders: if you packed boots but no waders, you're hunting dry ground (field,
+  // dry blind, pass shoot). Rewrite the wader-assuming slots to run boots + pants instead.
+  if(S.mode==='waterfowl' && !anyPackedInCat('wader') && anyPackedInCat('boots')){
+    var boot=closestPacked('Ankle Mud Boot', dressF, true);
+    rec.slots.forEach(function(sl){
+      if(sl.k==='Legs'){
+        // drop the wader; the loop below will fill Legs from packed pants (or gap honestly if none)
+        sl.items=[{txt:'PRO HD Flex Zip Wader', sub:'', _dropWader:true}];
+      } else if(sl.k==='Feet'){
+        if(boot) sl.items=[{txt:boot.name, sub:'no waders packed \u2014 boots on dry ground'}, {txt:'ULTRA Merino Crew Sock', sub:'base sock'}];
+      } else if(sl.k==='Base Btm'){
+        // rephrase 'under the waders' language to 'under your pants'
+        sl.items=sl.items.map(function(it){ if(it.sub) it.sub=it.sub.replace(/under the waders/i,'under your pants'); return it; });
+      }
+    });
+    var wn=rec.notes.indexOf('The waders are your waterproofing \u2014 everything else layers underneath to the day.');
+    if(wn>=0) rec.notes[wn]='No waders packed \u2014 running boots on dry ground. Everything else layers to the day; you have no waterproof leg layer, so stay out of standing water.';
+  }
   rec.slots.forEach(function(sl){
     var essential=!!ESSENTIAL_SLOTS[sl.k];
     var out=[]; var anyReal=false; var anyKept=false;
     sl.items.forEach(function(it){
       if(it.none){ out.push(it); return; }
+      if(it._dropWader){
+        // waterfowl-no-waders: fill Legs from a packed PANT, else honest gap
+        var pant=firstPackedForSlot('Legs'); // pant or wader; wader already ruled out
+        if(pant){ out.push({txt:pant, sub:'no waders \u2014 pants on dry ground'}); anyReal=true; anyKept=true; }
+        else { anyReal=true; }
+        return;
+      }
       var cn=catName(it.txt);
       if(cn===null){ out.push(it); return; }          // non-gear label: always available
       anyReal=true;
@@ -821,7 +846,12 @@ function applyTrip(rec){
         // torso rule: a Base Top can be covered by a packed Mid, and a Mid by a packed base/shirt.
         var cover = (sl.k==='Base Top') ? firstPackedForSlot('Mid') : null;
         if(cover){ out=[{txt:cover, sub:'your only packed top \u2014 wear it next to skin'}]; anyKept=true; borrowedMid=cover; }
-        else { out=[{txt:'nothing packed \u2014 you need a top', gap:true}]; }
+        else {
+          var needMsg = sl.k==='Legs' ? 'nothing packed \u2014 you need waders or pants'
+                      : sl.k==='Base Top' ? 'nothing packed \u2014 you need a top'
+                      : 'nothing packed \u2014 you need this';
+          out=[{txt:needMsg, gap:true}];
+        }
       }
     }
     else if(anyReal && !anyKept && !hasLabel){ out=[{txt:'nothing packed for this', gap:true}]; }
@@ -834,6 +864,11 @@ function applyTrip(rec){
     }
     sl.items=out;
   });
+}
+function anyPackedInCat(cat){
+  var gear=allGear();
+  for(var i=0;i<gear.length;i++){ if(gear[i].cat===cat && isPacked(gear[i].name)) return gear[i].name; }
+  return null;
 }
 // map a slot label to the catalog categories that fill it, and return the first packed such piece
 function firstPackedForSlot(slotK){

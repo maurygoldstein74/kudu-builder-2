@@ -2,7 +2,7 @@
 // Reads ANTHROPIC_API_KEY from Netlify env vars so the key is NEVER in the client.
 // Optional: set CLAUDE_MODEL to choose a model (e.g. claude-sonnet-5, claude-haiku-4-5-20251001).
 
-const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
+const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-4-6";
 
 const SYSTEM = [
   "You are a gear-spec researcher for a whitetail / upland / waterfowl hunting layering app.",

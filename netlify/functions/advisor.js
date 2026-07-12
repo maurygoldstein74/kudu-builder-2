@@ -4,7 +4,8 @@
 // search loop, which was what blew the timeout and returned 504s).
 // Uses the modern fetchable-module signature so we can return a ReadableStream body.
 
-const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
+const PRIMARY_MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
+const FALLBACK_MODEL = "claude-sonnet-4-6";  // broadly-available stable ID if primary is not provisioned
 
 function buildSystem(owned) {
   return [
@@ -41,19 +42,32 @@ export default async (req) => {
   if (!question) return json({ error: "No question provided" }, 400);
   const owned = (payload.owned || "").toString().slice(0, 4000);
 
-  let upstream;
-  try {
-    upstream = await fetch("https://api.anthropic.com/v1/messages", {
+  async function callModel(model) {
+    return fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
-        model: MODEL,
+        model: model,
         max_tokens: 1024,
         stream: true,
         system: buildSystem(owned),
         messages: [{ role: "user", content: question }]
       })
     });
+  }
+
+  let usedModel = PRIMARY_MODEL;
+  let upstream;
+  try {
+    upstream = await callModel(PRIMARY_MODEL);
+    // If the primary model is rejected (bad/unprovisioned model id -> 404/400), retry with the stable one.
+    if (!upstream.ok && (upstream.status === 404 || upstream.status === 400) && PRIMARY_MODEL !== FALLBACK_MODEL) {
+      let firstErr = "HTTP " + upstream.status;
+      try { const d = await upstream.json(); if (d && d.error && d.error.message) firstErr = d.error.message; } catch (e) {}
+      // only fall back if the error looks model-related
+      if (/model/i.test(firstErr)) { usedModel = FALLBACK_MODEL; upstream = await callModel(FALLBACK_MODEL); }
+      else { return json({ error: firstErr }, 502); }
+    }
   } catch (e) {
     return json({ error: "Upstream request failed: " + (e && e.message || e) }, 502);
   }
@@ -61,7 +75,7 @@ export default async (req) => {
   if (!upstream.ok) {
     let msg = "HTTP " + upstream.status;
     try { const d = await upstream.json(); if (d && d.error && d.error.message) msg = d.error.message; } catch (e) {}
-    return json({ error: msg }, 502);
+    return json({ error: msg + " (model: " + usedModel + ")" }, 502);
   }
 
   // Transform Anthropic's SSE stream into a plain-text token stream for the client.
@@ -69,9 +83,11 @@ export default async (req) => {
   const decoder = new TextDecoder();
   const encoder = new TextEncoder();
   let buffer = "";
+  let gotText = false;
 
   const stream = new ReadableStream({
     async start(controller) {
+      const enc2 = new TextEncoder();
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -84,17 +100,23 @@ export default async (req) => {
             if (!s.startsWith("data:")) continue;
             const data = s.slice(5).trim();
             if (data === "[DONE]") continue;
-            try {
-              const evt = JSON.parse(data);
-              if (evt.type === "content_block_delta" && evt.delta && evt.delta.type === "text_delta") {
-                controller.enqueue(encoder.encode(evt.delta.text));
-              }
-            } catch (e) { /* ignore keep-alives / partial */ }
+            let evt;
+            try { evt = JSON.parse(data); } catch (e) { continue; }
+            if (evt.type === "content_block_delta" && evt.delta && evt.delta.type === "text_delta") {
+              gotText = true;
+              controller.enqueue(encoder.encode(evt.delta.text));
+            } else if (evt.type === "error" || (evt.error && evt.error.message)) {
+              // Anthropic streamed an error event (bad model, overloaded, etc.)
+              const em = (evt.error && evt.error.message) || (evt.message) || "stream error";
+              controller.enqueue(encoder.encode("[advisor error: " + em + "]"));
+              gotText = true;
+            }
           }
         }
       } catch (e) {
-        controller.enqueue(encoder.encode("\n\n[stream interrupted - try again]"));
+        controller.enqueue(enc2.encode("[advisor error: " + (e && e.message || e) + "]"));
       } finally {
+        if (!gotText) controller.enqueue(enc2.encode("[advisor: model '" + usedModel + "' returned no text - check ANTHROPIC_API_KEY / CLAUDE_MODEL env vars in Netlify]"));
         controller.close();
       }
     }
