@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Field Kit v1.61</title>
+<title>Field Kit v1.62</title>
 <meta name="theme-color" content="#14161A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -370,7 +370,7 @@
   </section>
   <section class="card setup-card">
     <h3>About</h3>
-    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.61</span></div>
+    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.62</span></div>
     <div class="setrow"><span class="k">Weather</span><span class="mono">Open-Meteo &middot; no key</span></div>
     <div class="setrow"><span class="k">Place name</span><span class="mono">BigDataCloud</span></div>
     <div class="setrow"><span class="k">Gear specs</span><span class="mono">Claude &middot; your key</span></div>
@@ -1100,11 +1100,15 @@ function advErrHelp(err){
   if(/Failed to fetch|network/i.test(m)) return 'Could not reach the advisor. Check your connection and that the site is deployed.';
   return 'Advisor error: '+esc(m)+' \u2014 try again or rephrase.';
 }
-var ADV_ENDPOINT='/api/advisor-search';   // search-enabled (needs Pro 26s); falls back to /api/advisor
+// Default to the plain streaming advisor (no web search) - it has no search pauses, fits the 10s
+// function limit, and is the reliable path. The search-enabled endpoint (/api/advisor-search) exists
+// in the repo but is OFF until the Netlify Pro 26s timeout is confirmed active; flip ADV_ENDPOINT to
+// '/api/advisor-search' then. Do NOT auto-try search first: a search timeout is not a 404, so it would
+// not fall back and would just fail.
+var ADV_ENDPOINT='/api/advisor';
 async function askAdvisor(q){
   advSetAnswer('<span class="spinner sm"></span> Claude is thinking\u2026','busy');
   var ok=await streamAdvisor(ADV_ENDPOINT, q);
-  // if the search endpoint is not deployed (404) or times out, fall back to the plain streaming one
   if(ok==='missing' && ADV_ENDPOINT!=='/api/advisor'){ await streamAdvisor('/api/advisor', q); }
 }
 async function streamAdvisor(endpoint, q){
