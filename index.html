@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Field Kit v1.65</title>
+<title>Field Kit v1.67</title>
 <meta name="theme-color" content="#14161A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -370,7 +370,7 @@
   </section>
   <section class="card setup-card">
     <h3>About</h3>
-    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.65</span></div>
+    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.67</span></div>
     <div class="setrow"><span class="k">Weather</span><span class="mono">Open-Meteo &middot; no key</span></div>
     <div class="setrow"><span class="k">Place name</span><span class="mono">BigDataCloud</span></div>
     <div class="setrow"><span class="k">Gear specs</span><span class="mono">Claude &middot; your key</span></div>
@@ -440,6 +440,8 @@ const OWNED = [
   {name:'Pro Brush pant', cat:'pant', tmin:25, tmax:70, disc:['upland']},
   {name:'Vital PRO bottoms', cat:'base', tmin:0, tmax:45, disc:['deer','upland','waterfowl']},
   {name:'Encounter 200 Fleece Bottom', cat:'base', tmin:15, tmax:48, disc:['deer','upland','waterfowl'], q:true},
+  {name:'Pro Hat - Valo', cat:'headwear', tmin:45, tmax:95, disc:['deer','upland','waterfowl']},
+  {name:'Pro Hat - Orange', cat:'headwear', tmin:45, tmax:95, disc:['deer']},
   {name:'Kenai beanie', cat:'headwear', tmin:25, tmax:50, disc:['deer','upland','waterfowl']},
   {name:'Proximity beanie', cat:'headwear', tmin:0, tmax:35, disc:['deer','upland','waterfowl'], q:true},
   {name:'Proximity neck gaiter', cat:'accessory', tmin:0, tmax:45, disc:['deer','waterfowl']},
@@ -665,7 +667,7 @@ function deerKit(f,wet,windy,slot,I,none,notes,flags,opts){
   else legs.push(I('Kutana Gale Force pant','frigid / cold-wet \u2014 waterproof insulated'));
   if(wet && f>=35 && f<75) legs.push(I('Kutana Storm Shell pant','waterproof over the top'));
   slot('Legs',legs);
-  if(f>=58) slot('Head',[none('bare / ball cap')]);
+  if(f>=58) slot('Head',[I('Pro Hat - Orange','blaze cap - visibility during gun season')]);
   else if(f>=45) slot('Head',[ windy?I('Kenai beanie + neck gaiter','wind'):I('Kenai beanie',null,{opt:true}) ]);
   else if(f>=33) slot('Head',[ windy?I('Kenai beanie + neck gaiter','wind'):I('Kenai beanie') ]);
   else if(f>=24) slot('Head',[I('Proximity beanie + neck gaiter')]);
@@ -708,7 +710,7 @@ function uplandKit(f,wet,windy,slot,I,none,notes,flags){
   slot('Vest',[I('Upland Field Vest','game bag, shell loops, 2 water bottles')]);
   const legs=[I('Pro Brush pant','brush protection')];
   slot('Legs',legs);
-  if(f>=42) slot('Head',[I('Ball cap')]); else if(f>=27) slot('Head',[I('Kenai beanie')]); else slot('Head',[I('Proximity beanie','warmer for the cold')]);
+  if(f>=42) slot('Head',[I('Pro Hat - Valo')]); else if(f>=27) slot('Head',[I('Kenai beanie')]); else slot('Head',[I('Proximity beanie','warmer for the cold')]);
   if(f>=40) slot('Hands',[I('Precision glove','trigger dexterity',{opt:true})]); else if(f>=28) slot('Hands',[I('Yukon glove')]); else if(f>=20) slot('Hands',[I('Kenai glove','warmer, still dexterous')]); else slot('Hands',[I('Northstar glove','warmest')]);
   slot('Feet',[I('Danner lace-up boots','built for miles'), I('Ankle mud boot','swap in for wet ground, short walks',{opt:true}), I('ULTRA Merino Crew Sock','base sock')]);
   notes.push('You generate heat walking \u2014 dress cool and start a touch cold. You will warm up in the first hundred yards.');
@@ -735,8 +737,8 @@ function waterfowlKit(f,wet,windy,slot,I,none,notes,flags){
   else slot('Shell',[I('HD Flex Storm Shell', wet?'waterproof outer \u2014 layer it over your base and fleece':(windy?'block the wind off the water':(f<42?'your outer \u2014 the fleece stack underneath pairs better with bibs than the parka':'your layered outer + concealment'))), I('Kutana Storm Shell','lighter option',{opt:true})]);
   const legs=[I('PRO HD Flex Zip Wader','waterproof, for the marsh')];
   slot('Legs',legs);
-  if(f>=55) slot('Head',[ windy?I('Ball cap + gaiter + face net','wind off the water'):I('Ball cap + face net','concealment') ]);
-  else if(f>=45) slot('Head',[ windy?I('Kenai beanie + gaiter + face net','wind off the water'):I('Ball cap + face net','concealment') ]);
+  if(f>=55) slot('Head',[ windy?I('Pro Hat - Valo + gaiter + face net','wind off the water'):I('Pro Hat - Valo + face net','concealment') ]);
+  else if(f>=45) slot('Head',[ windy?I('Kenai beanie + gaiter + face net','wind off the water'):I('Pro Hat - Valo + face net','concealment') ]);
   else slot('Head',[I('Proximity beanie + gaiter'), I('Face net','concealment',{opt:true})]);
   if(f>=60) slot('Hands',[none('bare \u2014 too warm for gloves')]);
   else if(f>=45) slot('Hands',[I('Yukon glove','waterproof, light',{opt:true})]);
@@ -747,7 +749,6 @@ function waterfowlKit(f,wet,windy,slot,I,none,notes,flags){
   notes.push('The waders are your waterproofing \u2014 everything else layers underneath to the day.');
   if(f>=68) notes.push('Hot early-season sit \u2014 go light and plan to get wet. Sun, bugs, and hydration matter more than layers today.');
   if(f<52) notes.push('It is a static sit like deer: cold builds up sitting still, so layer for the coldest stretch, not the walk to the blind.');
-  flags.push({kind:'info',ic:'\uD83E\uDD86',txt:'KUIU is not marsh camo. Add a camo layer or face net that matches your blind and cover.'});
   if(f<48) flags.push({kind:'info',ic:'\uD83E\uDDCA',txt:'<b>Layering under the shell:</b> fleece (your Peloton) is the under-shell insulation \u2014 the down jackets are outer-fit and would compress. Base + fleece + HD Flex runs to about 30\u00B0 and pairs better with wader bibs; below 30\u00B0 the Gale Force takes over.'});
 }
 /* render loadout (with custom-gear integration) */
