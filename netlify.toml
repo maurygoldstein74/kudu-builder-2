@@ -1,6 +1,7 @@
+# netlify.toml — place at the repository root
 [build]
-  publish = "."
+  publish = "."                     # serves index.html from the repo root
+  functions = "netlify/functions"   # location of anthropic.js
 
 [functions]
-  directory = "netlify/functions"
   node_bundler = "esbuild"

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Field Kit v1.44</title>
+<title>Field Kit v1.45</title>
 <meta name="theme-color" content="#14161A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -335,7 +335,7 @@
   </section>
   <section class="card setup-card">
     <h3>About</h3>
-    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.44</span></div>
+    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.45</span></div>
     <div class="setrow"><span class="k">Weather</span><span class="mono">Open-Meteo &middot; no key</span></div>
     <div class="setrow"><span class="k">Place name</span><span class="mono">BigDataCloud</span></div>
     <div class="setrow"><span class="k">Gear specs</span><span class="mono">Claude &middot; your key</span></div>
@@ -606,7 +606,7 @@ function deerKit(f,wet,windy,slot,I,none,notes,flags,opts){
     else if(insulF>=24) slot('Insul',[I('Super Down PRO jacket','carry it \u2014 pull on when you stop')]);
     else slot('Insul',[I('Super Down Haven jacket','carry it \u2014 pull on when you stop')]);
   }
-  else if(insulF>=58) slot('Insul',[none(wet?(f>=75?'base is enough \u2014 too warm to layer':'the shell handles it'):'base is enough')]);
+  else if(insulF>=58) slot('Insul',[none(wet?(f>=75?'base is enough \u2014 too warm to layer':'the shell handles it'):(insulF<64?'base is enough \u2014 a light soft shell is optional if it is breezy':'base is enough'))]);
   else if(insulF>=48) slot('Insul',[none(wet?'the storm shell handles the wet':'no puffy needed \u2014 a light soft shell is your outer')]);
   else if(wet) slot('Insul', insulF>=42 ? [none('your fleece mid layers under the shell \u2014 a mid-layer insulated jacket (Kenai) would add real warmth here')] : [I('Kutana Gale Force jacket','waterproof insulated one-piece \u2014 no outer-fit layer for a shell to compress')]);
   else if(insulF>=35) slot('Insul',[I('Proximity jacket','quiet synthetic \u2014 worn as your outer')]);
@@ -615,7 +615,7 @@ function deerKit(f,wet,windy,slot,I,none,notes,flags,opts){
   if(f>=75) slot('Shell',[none(wet?'too hot \u2014 you\'ll take the rain':'dry \u2014 skip it')]);
   else if(wet && f<42 && !active) slot('Shell',[none('the Gale Force jacket is your shell \u2014 already waterproof')]);
   else if(wet) slot('Shell',[I('Kutana Storm Shell','lighter & packable \u2014 better for the stand'), I('HD Flex Storm Shell','your waterfowl shell; heavier but bombproof',{opt:true})]);
-  else if(active ? (f<62) : (f>=48 && f<58)) slot('Shell', windy?[I('Guide DCS jacket','soft-shell wind block'), I('Rubicon soft shell','lighter option',{opt:true})] : [I('Guide DCS jacket', active?'soft-shell wind block \u2014 vent when you heat up':'light soft-shell outer for the sit',{opt:true})]);
+  else if(active ? (f<62) : (f>=48 && f<64)) slot('Shell', windy?[I('Guide DCS jacket','soft-shell wind block'), I('Rubicon soft shell','lighter option',{opt:true})] : [I('Guide DCS jacket', active?'soft-shell wind block \u2014 vent when you heat up':'light soft-shell outer for the sit',{opt:true})]);
   else slot('Shell',[none('dry \u2014 skip it')]);
   const legs=[];
   if(f>=68) legs.push(I('Tiburon pant','lightweight & vented \u2014 best in the heat'));
