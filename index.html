@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Field Kit v1.59</title>
+<title>Field Kit v1.61</title>
 <meta name="theme-color" content="#14161A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -370,7 +370,7 @@
   </section>
   <section class="card setup-card">
     <h3>About</h3>
-    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.59</span></div>
+    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.61</span></div>
     <div class="setrow"><span class="k">Weather</span><span class="mono">Open-Meteo &middot; no key</span></div>
     <div class="setrow"><span class="k">Place name</span><span class="mono">BigDataCloud</span></div>
     <div class="setrow"><span class="k">Gear specs</span><span class="mono">Claude &middot; your key</span></div>
@@ -1095,20 +1095,45 @@ function ownedGearText(){
 function advSetAnswer(html,kind){ var el=document.getElementById('advAnswer'); el.className='adv-answer '+(kind||''); el.classList.remove('hidden'); el.innerHTML=html; }
 function advErrHelp(err){
   var m=(err&&err.message)||String(err);
-  if(/404|405/.test(m)) return 'The advisor function is not deployed. Push anthropic.js to your repo (Git deploy, not drag-and-drop).';
+  if(/404|405/.test(m)) return 'The advisor function is not deployed. Push advisor.js to your repo (Git deploy, not drag-and-drop).';
   if(/ANTHROPIC|Key not set|api_key|401/i.test(m)) return 'Your Anthropic key is not set in Netlify env vars, or is invalid.';
   if(/Failed to fetch|network/i.test(m)) return 'Could not reach the advisor. Check your connection and that the site is deployed.';
   return 'Advisor error: '+esc(m)+' \u2014 try again or rephrase.';
 }
+var ADV_ENDPOINT='/api/advisor-search';   // search-enabled (needs Pro 26s); falls back to /api/advisor
 async function askAdvisor(q){
-  advSetAnswer('<span class="spinner sm"></span> Claude is thinking\u2026 (may search specs)','busy');
+  advSetAnswer('<span class="spinner sm"></span> Claude is thinking\u2026','busy');
+  var ok=await streamAdvisor(ADV_ENDPOINT, q);
+  // if the search endpoint is not deployed (404) or times out, fall back to the plain streaming one
+  if(ok==='missing' && ADV_ENDPOINT!=='/api/advisor'){ await streamAdvisor('/api/advisor', q); }
+}
+async function streamAdvisor(endpoint, q){
   try{
-    var r=await fetch('/.netlify/functions/anthropic',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({ask:q, owned:ownedGearText()})});
+    var r=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({ask:q, owned:ownedGearText()})});
+    if(r.status===404||r.status===405){ return 'missing'; }
     if(!r.ok){ var e={}; try{ e=await r.json(); }catch(_){} throw new Error(e.error||('HTTP '+r.status)); }
-    var d=await r.json();
-    if(!d.answer){ advSetAnswer(esc(d.note||'No answer came back \u2014 try naming the exact product.'),'error'); return; }
-    advSetAnswer(esc(d.answer),'');
-  }catch(err){ advSetAnswer(advErrHelp(err),'error'); }
+    if(!r.body || !r.body.getReader){ var d=await r.json().catch(function(){return{};}); advSetAnswer(esc(d.answer||d.error||'No answer came back.'), d.answer?'':'error'); return true; }
+    var reader=r.body.getReader(), dec=new TextDecoder(), raw='', text='', status='';
+    var el=document.getElementById('advAnswer'); el.className='adv-answer'; el.classList.remove('hidden'); el.textContent='';
+    while(true){
+      var chunk=await reader.read();
+      if(chunk.done) break;
+      raw+=dec.decode(chunk.value,{stream:true});
+      // split control lines (\u241F-prefixed JSON) from answer text
+      var parts=raw.split('\u241F'); text=parts[0];
+      for(var i=1;i<parts.length;i++){
+        var nl=parts[i].indexOf('\n');
+        if(nl<0){ break; }                        // control line not complete yet
+        var ctrl=parts[i].slice(0,nl); text+=parts[i].slice(nl+1);
+        try{ var o=JSON.parse(ctrl); if(o.status==='searching') status='Looking up '+(o.query?('\u201C'+o.query+'\u201D'):'specs')+'\u2026'; else if(o.status==='reading') status='Reading results\u2026'; else if(o.status==='empty') status=''; }catch(_){}
+      }
+      var head = (!text.trim() && status) ? '<span class="spinner sm"></span> '+esc(status)+'\n\n' : '';
+      el.innerHTML = head + esc(text);
+    }
+    if(!text.trim()) advSetAnswer('No answer came back \u2014 try naming the exact product.','error');
+    else el.innerHTML=esc(text);
+    return true;
+  }catch(err){ advSetAnswer(advErrHelp(err),'error'); return true; }
 }
 var ADV_EX=['Would the Kenai Ultra jacket fill a gap?','Do I have overlap I could sell?','Why skip a shell below 38 on a cold sit?'];
 function paintAdvEx(){

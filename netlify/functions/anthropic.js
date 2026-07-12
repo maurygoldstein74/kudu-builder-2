@@ -61,46 +61,55 @@ exports.handler = async (event) => {
       "USER'S OWNED GEAR:",
       owned
     ].join("\n");
-    const abody = {
-      model: MODEL, max_tokens: 2048, system: advSystem,
-      messages: [{ role: "user", content: question }],
-      tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }]
-    };
+    // Agentic loop: let the model search as many rounds as it needs, accumulating text,
+    // until it stops for a real reason (end_turn) or we hit a hard iteration cap.
+    const msgs = [{ role: "user", content: question }];
+    const MAX_TURNS = 6;          // each turn may include up to 5 web searches
+    const PER_TURN_TOKENS = 4096; // generous so a turn is never starved mid-answer
+    let collected = [];
+    let lastStop = null;
     try {
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-        body: JSON.stringify(abody)
-      });
-      const d = await r.json();
-      if (!r.ok) {
-        const msg = (d && d.error && d.error.message) || ("HTTP " + r.status);
-        return { statusCode: 502, headers, body: JSON.stringify({ error: msg }) };
+      for (let turn = 0; turn < MAX_TURNS; turn++) {
+        const resp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+          body: JSON.stringify({
+            model: MODEL,
+            max_tokens: PER_TURN_TOKENS,
+            system: advSystem,
+            messages: msgs,
+            tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }]
+          })
+        });
+        const dd = await resp.json();
+        if (!resp.ok) {
+          const msg = (dd && dd.error && dd.error.message) || ("HTTP " + resp.status);
+          // if we already gathered some text over prior turns, return that rather than erroring
+          if (collected.length) break;
+          return { statusCode: 502, headers, body: JSON.stringify({ error: msg }) };
+        }
+        lastStop = dd.stop_reason;
+        const txt = (dd.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+        if (txt) collected.push(txt);
+        // Continue only if the model paused to use a tool (pause_turn) or ran tools this turn.
+        const usedTool = (dd.content || []).some(b => b.type === "server_tool_use" || b.type === "web_search_tool_result");
+        if (dd.stop_reason === "pause_turn" || (usedTool && dd.stop_reason !== "end_turn")) {
+          msgs.push({ role: "assistant", content: dd.content });
+          continue;
+        }
+        break; // end_turn, max_tokens with final text, or nothing more to do
       }
-      let answer = (d.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
-      if (!answer && (d.stop_reason === "pause_turn" || (d.content || []).some(b => b.type === "server_tool_use" || b.type === "web_search_tool_result"))) {
-        try {
-          const cont = await fetch("https://api.anthropic.com/v1/messages", {
-            method: "POST",
-            headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-            body: JSON.stringify({
-              model: MODEL, max_tokens: 2048, system: advSystem,
-              messages: [{ role: "user", content: question }, { role: "assistant", content: d.content }],
-              tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }]
-            })
-          });
-          const d2 = await cont.json();
-          if (cont.ok) answer = (d2.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
-        } catch (e2) {}
-      }
-      if (!answer) {
-        const note = d.stop_reason === "max_tokens" ? "The answer got cut off mid-search. Ask about one specific piece and try again." : "No answer came back - try naming the exact product (e.g. KUIU Peloton 240 Zip-T).";
-        return { statusCode: 200, headers, body: JSON.stringify({ answer: "", note: note }) };
-      }
-      return { statusCode: 200, headers, body: JSON.stringify({ answer }) };
     } catch (e) {
-      return { statusCode: 502, headers, body: JSON.stringify({ error: "Upstream request failed: " + (e && e.message || e) }) };
+      if (!collected.length) return { statusCode: 502, headers, body: JSON.stringify({ error: "Upstream request failed: " + (e && e.message || e) }) };
     }
+    const answer = collected.join("\n\n").trim();
+    if (!answer) {
+      const note = lastStop === "max_tokens"
+        ? "The research ran long and did not finish. Try asking about one specific piece (e.g. \"KUIU Peloton 240 Zip-T\")."
+        : "No answer came back - try naming the exact product.";
+      return { statusCode: 200, headers, body: JSON.stringify({ answer: "", note: note }) };
+    }
+    return { statusCode: 200, headers, body: JSON.stringify({ answer: answer }) };
   }
 
   const name = (payload.name || "").toString().slice(0, 120).trim();

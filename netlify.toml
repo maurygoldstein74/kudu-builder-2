@@ -4,3 +4,9 @@
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
+
+# Search-enabled advisor needs headroom for web search. 26s requires Netlify Pro AND a one-time
+# support activation (the toml value alone does not take effect until support enables it for the site).
+# Harmless on the default 10s limit: the plain streaming advisor (/api/advisor) still works there.
+[functions."advisor-search"]
+  timeout = 26
