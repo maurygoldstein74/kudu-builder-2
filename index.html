@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Field Kit v1.67</title>
+<title>Field Kit v1.68</title>
 <meta name="theme-color" content="#14161A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -370,7 +370,7 @@
   </section>
   <section class="card setup-card">
     <h3>About</h3>
-    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.67</span></div>
+    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.68</span></div>
     <div class="setrow"><span class="k">Weather</span><span class="mono">Open-Meteo &middot; no key</span></div>
     <div class="setrow"><span class="k">Place name</span><span class="mono">BigDataCloud</span></div>
     <div class="setrow"><span class="k">Gear specs</span><span class="mono">Claude &middot; your key</span></div>
@@ -656,7 +656,8 @@ function deerKit(f,wet,windy,slot,I,none,notes,flags,opts){
   else if(wet && f<42 && !active) slot('Shell',[none('the Gale Force jacket is your shell \u2014 already waterproof')]);
   else if(wet) slot('Shell',[I('Kutana Storm Shell','lighter & packable \u2014 better for the stand'), I('HD Flex Storm Shell','your waterfowl shell; heavier but bombproof',{opt:true})]);
   else if(!active && f>=52 && f<64) slot('Shell', windy?[I('Guide DCS jacket','soft-shell wind block'), I('Rubicon soft shell','lighter option',{opt:true})] : [I('Guide DCS jacket','light soft-shell outer for the sit',{opt:true})]);
-  else if(!active && f>=40 && f<52) slot('Shell', windy?[I('Axis Hybrid Hooded jacket','quiet fleece-backed soft shell \u2014 warmer, blocks the wind'), I('Guide DCS jacket','lighter option',{opt:true})] : [I('Axis Hybrid Hooded jacket','quiet fleece-backed soft shell \u2014 warmer than the Guide for a cold sit'), I('Guide DCS jacket','lighter option',{opt:true})]);
+  else if(!active && f>=48 && f<52) slot('Shell', windy?[I('Axis Hybrid Hooded jacket','quiet fleece-backed soft shell \u2014 blocks the wind over your base'), I('Guide DCS jacket','lighter option',{opt:true})] : [I('Axis Hybrid Hooded jacket','quiet fleece-backed soft shell over your base'), I('Guide DCS jacket','lighter option',{opt:true})]);
+  else if(!active && f>=40 && f<48) slot('Shell',[none('your insulation jacket is the outer \u2014 no soft shell over it (it would compress the loft)')]);
   else if(active && f<48) slot('Shell',[I('Axis Hybrid Hooded jacket','quiet + warm on the move \u2014 vent the pit zips when you heat up'), I('Guide DCS jacket','lighter option',{opt:true})]);
   else if(active && f<62) slot('Shell', windy?[I('Guide DCS jacket','soft-shell wind block'), I('Rubicon soft shell','lighter option',{opt:true})] : [I('Guide DCS jacket','soft-shell wind block \u2014 vent when you heat up',{opt:true})]);
   else slot('Shell',[none('dry \u2014 skip it')]);
