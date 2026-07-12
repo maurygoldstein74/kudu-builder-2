@@ -45,16 +45,24 @@ exports.handler = async (event) => {
     const question = payload.ask.toString().slice(0, 1500).trim();
     const owned = (payload.owned || "").toString().slice(0, 4000);
     const advSystem = [
-      "You are a gear advisor for a whitetail / upland / waterfowl hunting layering app.",
-      "The user owns the gear listed below. Answer their question grounded in what they own.",
-      "When they ask about a NEW piece, say plainly whether it fills a real gap or duplicates something they already have, and at what temperature/discipline it would slot in.",
-      "When they ask about the app's logic, explain the reasoning (layering physics, quiet fabrics for close range, waterproof vs wind-resistant, outer-fit insulation not going under a shell).",
-      "Be direct and opinionated. Prefer buy-once-cry-once. Do not recommend buying gear that duplicates what they own. Keep answers tight — a few short paragraphs, no filler.",
-      "You may use web search to verify specs of a specific product before judging fit.",
-      "\nUSER'S OWNED GEAR:\n" + owned
+      "You are the gear advisor built into a KUIU-focused hunting layering app. The app recommends a weather-driven clothing loadout for whitetail (stationary stand), upland (on foot), and waterfowl (blind) hunting, drawing only from gear the user actually owns - almost entirely KUIU. Your job is to help the user decide whether a piece of gear they are considering fits their kit, and to explain the app's layering logic.",
+      "",
+      "GROUNDING RULES:",
+      "- The user's owned gear is listed at the end. Reason from THAT, not a generic wardrobe.",
+      "- Default to KUIU. When they name a product, assume KUIU unless they say otherwise, and use web search to pull real specs: search kuiu.com product and collection pages first for fabric, weight, fill, temp intent and fit (base / mid / outer). Then check hunting forums - rokslide.com, archerytalk.com, and reddit r/Hunting or r/bowhunting - for real-world temperature feedback and how pieces layer, since KUIU's own copy understates ranges.",
+      "- Verify before judging. Do not guess a spec you can confirm with a quick search.",
+      "",
+      "HOW TO ANSWER:",
+      "- NEW piece: state plainly whether it fills a real gap or duplicates something owned, name the specific owned piece it overlaps, and give the temperature band + discipline where it would slot in. If it duplicates, say do not buy it.",
+      "- Two-option question (X or Y): pick one, say why, in terms of the gap it fills in THIS kit.",
+      "- Logic question: explain the reasoning - quiet brushed/fleece faces for close-range whitetail, waterproof vs merely wind-resistant, outer-fit down never layered under a shell (it compresses), waders as the waterfowl waterproofing, activity raising/lowering the dressed-for temp.",
+      "- Be direct and opinionated, buy-once-cry-once. Never pad. A few tight paragraphs, plain text (no markdown headers).",
+      "",
+      "USER'S OWNED GEAR:",
+      owned
     ].join("\n");
     const abody = {
-      model: MODEL, max_tokens: 1024, system: advSystem,
+      model: MODEL, max_tokens: 2048, system: advSystem,
       messages: [{ role: "user", content: question }],
       tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }]
     };
@@ -69,7 +77,26 @@ exports.handler = async (event) => {
         const msg = (d && d.error && d.error.message) || ("HTTP " + r.status);
         return { statusCode: 502, headers, body: JSON.stringify({ error: msg }) };
       }
-      const answer = (d.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+      let answer = (d.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+      if (!answer && (d.stop_reason === "pause_turn" || (d.content || []).some(b => b.type === "server_tool_use" || b.type === "web_search_tool_result"))) {
+        try {
+          const cont = await fetch("https://api.anthropic.com/v1/messages", {
+            method: "POST",
+            headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
+            body: JSON.stringify({
+              model: MODEL, max_tokens: 2048, system: advSystem,
+              messages: [{ role: "user", content: question }, { role: "assistant", content: d.content }],
+              tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }]
+            })
+          });
+          const d2 = await cont.json();
+          if (cont.ok) answer = (d2.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
+        } catch (e2) {}
+      }
+      if (!answer) {
+        const note = d.stop_reason === "max_tokens" ? "The answer got cut off mid-search. Ask about one specific piece and try again." : "No answer came back - try naming the exact product (e.g. KUIU Peloton 240 Zip-T).";
+        return { statusCode: 200, headers, body: JSON.stringify({ answer: "", note: note }) };
+      }
       return { statusCode: 200, headers, body: JSON.stringify({ answer }) };
     } catch (e) {
       return { statusCode: 502, headers, body: JSON.stringify({ error: "Upstream request failed: " + (e && e.message || e) }) };

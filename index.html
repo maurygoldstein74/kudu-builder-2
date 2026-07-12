@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Field Kit v1.52</title>
+<title>Field Kit v1.55</title>
 <meta name="theme-color" content="#14161A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -308,7 +308,7 @@
     <div class="flags" id="flags"></div>
     <section class="manifest" id="manifest">
       <div class="man-head"><span class="t">Loadout</span><span class="c mono" id="manifestMode">DEER &middot; STAND</span></div>
-      <div class="trip-active hidden" id="tripActive">TRIP KIT \u00B7 <span id="tripActiveCount"></span> packed \u2014 tap to edit</div>
+      <div class="trip-active hidden" id="tripActive">TRIP KIT &middot; <span id="tripActiveCount"></span> packed &mdash; tap to edit</div>
       <div id="slots"></div>
     </section>
     <div class="notes"><div class="nt">Field notes</div><ul id="notes"></ul></div>
@@ -358,21 +358,6 @@
     </div>
   </section>
   <section class="card setup-card">
-    <h3>Gear research (Claude)</h3>
-    <p>Connection status for the add-gear feature.</p>
-    <div style="display:flex;gap:10px;align-items:center;margin-bottom:14px;flex-wrap:wrap">
-      <span class="pill" id="apiPill"><span class="d"></span><span id="apiPillText">Not checked</span></span>
-      <button class="btn ghost sm" id="testApi">Test connection</button>
-    </div>
-    <div class="lbl" style="font-family:'JetBrains Mono';font-size:.6rem;color:var(--faint);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px">One-time Netlify setup</div>
-    <ol class="steps">
-      <li>Deploy to Netlify via <b>Git</b> so the <code>anthropic.js</code> function bundles (a drag-and-drop deploy will not build it).</li>
-      <li>Site settings &rarr; Environment variables &rarr; add <code>ANTHROPIC_API_KEY</code> with your key.</li>
-      <li>Optional: set <code>CLAUDE_MODEL</code> to pick the model.</li>
-      <li>Redeploy. Your key stays server-side &mdash; it is never in this page.</li>
-    </ol>
-  </section>
-  <section class="card setup-card">
     <h3>Gear advisor</h3>
     <p>Ask about a piece you are considering &mdash; how it fits what you own &mdash; or why the loadout logic does what it does. Answers are grounded in your closet.</p>
     <div class="adv-ex" id="advEx"></div>
@@ -385,7 +370,7 @@
   </section>
   <section class="card setup-card">
     <h3>About</h3>
-    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.52</span></div>
+    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.55</span></div>
     <div class="setrow"><span class="k">Weather</span><span class="mono">Open-Meteo &middot; no key</span></div>
     <div class="setrow"><span class="k">Place name</span><span class="mono">BigDataCloud</span></div>
     <div class="setrow"><span class="k">Gear specs</span><span class="mono">Claude &middot; your key</span></div>
@@ -811,9 +796,15 @@ function applyTrip(rec){
       if(isPacked(cn)){ out.push(it); anyKept=true; return; }  // packed: keep as-is
       // not packed: try closest packed alternative in this slot
       var alt=closestPacked(cn, dressF);
-      if(alt){ out.push(Object.assign({},it,{txt:alt, sub:'closest you packed', custom:false, opt:false, gap:false})); anyKept=true; }
+      if(alt){
+        // skip if this substitute (or the original piece) is already shown in this slot
+        var dup=out.some(function(x){ return x.txt===alt; });
+        if(!dup){ out.push(Object.assign({},it,{txt:alt, sub:'closest you packed', custom:false, opt:false, gap:false})); anyKept=true; }
+      }
       // else: drop this item (do not show gear left at home)
     });
+    // final dedupe by txt (guards any remaining collisions from packed originals)
+    var seen={}; out=out.filter(function(x){ if(x.none||x.gap) return true; if(seen[x.txt]) return false; seen[x.txt]=1; return true; });
     // gap only if there were real gear items, none kept, AND no non-gear label survived to show
     var hasLabel=out.some(function(x){ return !x.none && !x.gap; });
     if(anyReal && !anyKept && !hasLabel){ out=[{txt:'nothing packed for this', gap:true}]; }
@@ -1054,19 +1045,6 @@ function pinHome(){
   lsSet('fk_home',homeMem); paintHome();
 }
 function clearHome(){ homeMem=null; try{localStorage.removeItem('fk_home');}catch(e){} paintHome(); }
-async function testApi(){
-  const pill=document.getElementById('apiPill'), txt=document.getElementById('apiPillText');
-  pill.className='pill'; txt.innerHTML='<span class="spinner sm"></span> checking';
-  try{
-    const r=await fetch('/.netlify/functions/anthropic',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({ping:true})});
-    const d=await r.json().catch(()=>({}));
-    if(r.ok && d.ok){ pill.className='pill ok'; txt.textContent='Connected'; }
-    else if(d && d.error){ pill.className='pill bad'; txt.textContent=/ANTHROPIC/i.test(d.error)?'Key not set':'Error'; }
-    else if(r.status===404 || r.status===405){ pill.className='pill bad'; txt.textContent='Not deployed'; }
-    else { pill.className='pill bad'; txt.textContent='HTTP '+r.status; }
-  }catch(e){ pill.className='pill bad'; txt.textContent='Not deployed'; }
-}
-
 /* gear advisor */
 function ownedGearText(){
   var lines=[];
@@ -1086,15 +1064,22 @@ function ownedGearText(){
   return lines.join('\n')+logic;
 }
 function advSetAnswer(html,kind){ var el=document.getElementById('advAnswer'); el.className='adv-answer '+(kind||''); el.classList.remove('hidden'); el.innerHTML=html; }
+function advErrHelp(err){
+  var m=(err&&err.message)||String(err);
+  if(/404|405/.test(m)) return 'The advisor function is not deployed. Push anthropic.js to your repo (Git deploy, not drag-and-drop).';
+  if(/ANTHROPIC|Key not set|api_key|401/i.test(m)) return 'Your Anthropic key is not set in Netlify env vars, or is invalid.';
+  if(/Failed to fetch|network/i.test(m)) return 'Could not reach the advisor. Check your connection and that the site is deployed.';
+  return 'Advisor error: '+esc(m)+' \u2014 try again or rephrase.';
+}
 async function askAdvisor(q){
   advSetAnswer('<span class="spinner sm"></span> Claude is thinking\u2026 (may search specs)','busy');
   try{
     var r=await fetch('/.netlify/functions/anthropic',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({ask:q, owned:ownedGearText()})});
     if(!r.ok){ var e={}; try{ e=await r.json(); }catch(_){} throw new Error(e.error||('HTTP '+r.status)); }
     var d=await r.json();
-    if(!d.answer) throw new Error('Empty answer \u2014 try rephrasing.');
+    if(!d.answer){ advSetAnswer(esc(d.note||'No answer came back \u2014 try naming the exact product.'),'error'); return; }
     advSetAnswer(esc(d.answer),'');
-  }catch(err){ advSetAnswer(gearErrHelp(err),'error'); }
+  }catch(err){ advSetAnswer(advErrHelp(err),'error'); }
 }
 var ADV_EX=['Would the Kenai Ultra jacket fill a gap?','Do I have overlap I could sell?','Why skip a shell below 38 on a cold sit?'];
 function paintAdvEx(){
@@ -1130,7 +1115,6 @@ document.getElementById('gearGo').onclick=()=>{ const v=document.getElementById(
 document.getElementById('gearInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const v=e.target.value.trim(); if(v) researchGear(v); } });
 document.getElementById('pinHome').onclick=pinHome;
 document.getElementById('clearHome').onclick=clearHome;
-document.getElementById('testApi').onclick=testApi;
 document.getElementById('windowSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.win=b.dataset.win; [].forEach.call(document.querySelectorAll('#windowSeg button'),x=>x.setAttribute('aria-pressed', x===b)); render(); });
 document.getElementById('modeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.mode=b.dataset.mode; [].forEach.call(document.querySelectorAll('#modeSeg button'),x=>x.setAttribute('aria-pressed', x===b)); render(); });
 document.getElementById('actSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.act=b.dataset.act; [].forEach.call(document.querySelectorAll('#actSeg button'),x=>x.setAttribute('aria-pressed', x===b)); render(); });
