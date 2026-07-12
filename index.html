@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Field Kit v1.70</title>
+<title>Field Kit v1.72</title>
 <meta name="theme-color" content="#14161A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -305,6 +305,11 @@
       <button data-act="high" aria-pressed="false">High</button>
     </div>
     <div class="actcap" id="actCap">short walk in · then sit</div>
+    <div class="acts" id="wfSeg" role="group" aria-label="Waterfowl environment" hidden>
+      <button data-wf="marsh" aria-pressed="true">Marsh</button>
+      <button data-wf="dry" aria-pressed="false">Dry field</button>
+    </div>
+    <div class="actcap" id="wfCap" hidden>waders · water &amp; mud</div>
     <div class="flags" id="flags"></div>
     <section class="manifest" id="manifest">
       <div class="man-head"><span class="t">Loadout</span><span class="c mono" id="manifestMode">DEER &middot; STAND</span></div>
@@ -370,7 +375,7 @@
   </section>
   <section class="card setup-card">
     <h3>About</h3>
-    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.70</span></div>
+    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.72</span></div>
     <div class="setrow"><span class="k">Weather</span><span class="mono">Open-Meteo &middot; no key</span></div>
     <div class="setrow"><span class="k">Place name</span><span class="mono">BigDataCloud</span></div>
     <div class="setrow"><span class="k">Gear specs</span><span class="mono">Claude &middot; your key</span></div>
@@ -400,13 +405,18 @@ try{ document.getElementById("favicon").href=ICON;
   var __mani={name:"KUIU Field Kit",short_name:"Field Kit",display:"standalone",background_color:"#141E2A",theme_color:"#14161A",start_url:".",icons:[{src:ICON,sizes:"192x192",type:"image/png"},{src:ICON,sizes:"512x512",type:"image/png"}]};
   document.getElementById("manifestLink").href=URL.createObjectURL(new Blob([JSON.stringify(__mani)],{type:"application/manifest+json"}));
 }catch(e){}
-const S = { lat:null, lon:null, windows:null, win:'dawn', mode:'deer', act:'light', locName:'', view:'loadout', manual:{on:false, temp:45, wind:5, wet:false} };
+const S = { lat:null, lon:null, windows:null, win:'dawn', mode:'deer', act:'light', wfEnv:'marsh', locName:'', view:'loadout', manual:{on:false, temp:45, wind:5, wet:false} };
 const HOUR = 3600*1000;
 
 /* guarded storage (works on Netlify; degrades to memory in sandboxed previews) */
 function lsGet(k,def){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):def; }catch(e){ return def; } }
 function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ return false; } }
-let customMem = lsGet('fk_custom', []);
+let customMem = (function(){
+  var raw = lsGet('fk_custom', []);
+  if(!Array.isArray(raw)) return [];
+  var valid = raw.filter(function(x){ return x && typeof x.name==='string' && x.name.trim() && typeof x.cat==='string' && x.cat.trim(); });
+  return valid;
+})();
 let tripOn = lsGet('fk_trip_on', false);
 let tripSet = lsGet('fk_trip_set', []);   // array of catalog item names that are 'packed'
 let homeMem = lsGet('fk_home', null);
@@ -615,7 +625,7 @@ function recommend(mode, w){
   const none=(txt)=>({txt:txt||'\u2014',none:true});
   if(mode==='deer') deerKit(f,wet,windy,slot,I,none,notes,flags,{insulF,carry,active,act});
   else if(mode==='upland') uplandKit(f,wet,windy,slot,I,none,notes,flags);
-  else waterfowlKit(f,wet,windy,slot,I,none,notes,flags);
+  else waterfowlKit(f,wet,windy,slot,I,none,notes,flags,(S.wfEnv||'marsh'));
   if(mode==='upland') flags.unshift({kind:'info',ic:'\uD83D\uDD25',txt:'<b>Dressing for ~'+f+'\u00B0.</b> You make your own heat walking, so this runs lighter than the '+air+'\u00B0 air \u2014 start a touch cold.'});
   else if(mode==='deer' && active) flags.unshift({kind:'info',ic:'\uD83D\uDEB6',txt:'<b>Moving hunt.</b> Dressed light like you are active \u2014 your insulation is carried, not worn, to pull on for the still spells.'});
   else if(mode==='deer' && act==='medium') flags.unshift({kind:'info',ic:'\uD83D\uDEB6',txt:'<b>Long walk-in.</b> Dressed heavier for a longer, damper sit than the reading alone would suggest.'});
@@ -719,25 +729,60 @@ function uplandKit(f,wet,windy,slot,I,none,notes,flags){
   flags.push({kind:'warn',ic:'\uD83D\uDFE7',txt:'<b>Blaze orange.</b> Your Upland Field Vest carries the load \u2014 run the blaze colorway (or add a blaze hat) to meet your state visibility law.'});
   flags.push({kind:'info',ic:'\uD83D\uDC62',txt:'Upland is a walking game. Your rubber mud boots are not built for distance \u2014 a dedicated upland/hiking boot is the real gap.'});
 }
-function waterfowlKit(f,wet,windy,slot,I,none,notes,flags){
+function waterfowlKit(f,wet,windy,slot,I,none,notes,flags,env){
+  var dry=(env==='dry');
   if(f>=80) slot('Base Top',[I('Tiburon Snap Shirt','solo \u2014 vented, dries fast'), I('120 Merino SS','or run this alone instead',{opt:true})]);
   else if(f>=68) slot('Base Top',[I('Tiburon Snap Shirt','vented warm-weather top'), I('120 Merino SS','lighter alternative',{opt:true})]);
   else if(f>=50) slot('Base Top',[I('Pro Merino 200 Zip-T','warm when damp')]);
   else if(f>=35) slot('Base Top',[I('Pro Merino 200 Zip-T'), I('Peloton 118','second skin',{opt:true})]);
   else slot('Base Top',[I('Vital PRO thermal top','warmest base')]);
-  if(f>=48) slot('Base Btm',[none('waders alone')]);
-  else if(f>=35) slot('Base Btm',[I('Encounter 200 Fleece Bottom','fleece base under the waders')]);
-  else slot('Base Btm',[I('Vital PRO bottoms','insulated base under the waders \u2014 your warmest')]);
+  if(f>=48) slot('Base Btm',[none(dry?'pants alone':'waders alone')]);
+  else if(f>=35) slot('Base Btm',[I('Encounter 200 Fleece Bottom', dry?'fleece base under your pants':'fleece base under the waders')]);
+  else slot('Base Btm',[I('Vital PRO bottoms', dry?'insulated base under your pants \u2014 your warmest':'insulated base under the waders \u2014 your warmest')]);
   if(f>=48) slot('Mid',[none('none')]); else slot('Mid',[I('Peloton 200 Zip-T')]);
-  if(f>=48) slot('Insul',[none('none needed')]);
-  else if(f>=30) slot('Insul',[none('layer under the shell \u2014 base + fleece do the work; the down jackets are outer-fit and would compress')]);
-  else slot('Insul',[I('Kutana Gale Force jacket','warmest option \u2014 bulkier over wader bibs, but the right call this cold')]);
-  if(f>=75) slot('Shell',[none(wet?'too hot for a shell \u2014 take the rain':'too warm & dry \u2014 skip it')]);
-  else if(f<30) slot('Shell',[none('the Gale Force jacket is your waterproof outer \u2014 no separate shell')]);
-  else if(f>=62 && !wet && !windy) slot('Shell',[none('too warm & dry \u2014 a camo shirt + face net is enough')]);
-  else slot('Shell',[I('HD Flex Storm Shell', wet?'waterproof outer \u2014 layer it over your base and fleece':(windy?'block the wind off the water':(f<42?'your outer \u2014 the fleece stack underneath pairs better with bibs than the parka':'your layered outer + concealment'))), I('Kutana Storm Shell','lighter option',{opt:true})]);
-  const legs=[I('PRO HD Flex Zip Wader','waterproof, for the marsh')];
-  slot('Legs',legs);
+  if(dry){
+    // DRY FIELD: soft shell leads dry; when wet, a waterproof shell leads and insulation must be a
+    // compressible mid UNDER it (the Proximity is an outer-fit wind jacket \u2014 it is the outer when dry,
+    // never layered under a shell). Below 30 the Gale Force is the waterproof insulated outer.
+    if(wet){
+      // rain shell is the outer -> insulation is a fleece mid that layers under it
+      if(f>=48) slot('Insul',[none('base is enough under the shell')]);
+      else if(f>=30) slot('Insul',[I('Peloton 200 Zip-T','fleece mid under the rain shell (a Kenai would add more warmth)')]);
+      else slot('Insul',[none('the Gale Force jacket is your insulated waterproof outer')]);
+      if(f>=75) slot('Shell',[none('too hot for a shell \u2014 take the rain')]);
+      else if(f<30) slot('Shell',[none('the Gale Force jacket is your waterproof outer this cold')]);
+      else slot('Shell',[I('HD Flex Storm Shell','rain moved in \u2014 waterproof outer over your layers'), I('Kutana Storm Shell','lighter option',{opt:true})]);
+    } else {
+      // dry -> soft shell leads; in the cold the Proximity (outer-fit) IS the outer, no shell over it
+      if(f>=48) slot('Insul',[none('base + fleece under the soft shell is enough')]);
+      else if(f>=30) slot('Insul',[I('Proximity jacket','quiet synthetic \u2014 worn as your outer for a cold dry sit')]);
+      else slot('Insul',[I('Kutana Gale Force jacket','warmest option this cold')]);
+      if(f>=75) slot('Shell',[none('too warm & dry \u2014 skip it')]);
+      else if(f>=62 && !windy) slot('Shell',[none('too warm & dry \u2014 a camo shirt + face net is enough')]);
+      else if(f>=48) slot('Shell',[I('Axis Hybrid Hooded jacket','quiet fleece-backed soft shell \u2014 your dry-field outer'), I('Guide DCS jacket','lighter option',{opt:true})]);
+      else if(f>=30) slot('Shell',[none('your insulation jacket is the outer \u2014 no soft shell over it (it would compress the loft)')]);
+      else slot('Shell',[none('the Gale Force jacket is your outer this cold')]);
+    }
+  } else {
+    if(f>=48) slot('Insul',[none('none needed')]);
+    else if(f>=30) slot('Insul',[none('layer under the shell \u2014 base + fleece do the work; the down jackets are outer-fit and would compress')]);
+    else slot('Insul',[I('Kutana Gale Force jacket','warmest option \u2014 bulkier over wader bibs, but the right call this cold')]);
+    if(f>=75) slot('Shell',[none(wet?'too hot for a shell \u2014 take the rain':'too warm & dry \u2014 skip it')]);
+    else if(f<30) slot('Shell',[none('the Gale Force jacket is your waterproof outer \u2014 no separate shell')]);
+    else if(f>=62 && !wet && !windy) slot('Shell',[none('too warm & dry \u2014 a camo shirt + face net is enough')]);
+    else slot('Shell',[I('HD Flex Storm Shell', wet?'waterproof outer \u2014 layer it over your base and fleece':(windy?'block the wind off the water':(f<42?'your outer \u2014 the fleece stack underneath pairs better with bibs than the parka':'your layered outer + concealment'))), I('Kutana Storm Shell','lighter option',{opt:true})]);
+  }
+  if(dry){
+    var wl=[];
+    if(f>=68) wl.push(I('Tiburon pant','lightweight & vented for the heat'));
+    else if(f>=52) wl.push(I('Attack pant','mild-day all-rounder'));
+    else if(f>=28) wl.push(I('Encounter pant','quiet soft-shell stand pant \u2014 fleece base goes under it'));
+    else wl.push(I('Kutana Gale Force pant','frigid \u2014 insulated & waterproof'));
+    if(wet && f>=35 && f<75) wl.push(I('Kutana Storm Shell pant','waterproof over the top if it rains',{opt:true}));
+    slot('Legs',wl);
+  } else {
+    slot('Legs',[I('PRO HD Flex Zip Wader','waterproof, for the marsh')]);
+  }
   if(f>=55) slot('Head',[ windy?I('Pro Hat - Valo + gaiter + face net','wind off the water'):I('Pro Hat - Valo + face net','concealment') ]);
   else if(f>=45) slot('Head',[ windy?I('Kenai beanie + gaiter + face net','wind off the water'):I('Pro Hat - Valo + face net','concealment') ]);
   else slot('Head',[I('Proximity beanie + gaiter'), I('Face net','concealment',{opt:true})]);
@@ -746,8 +791,12 @@ function waterfowlKit(f,wet,windy,slot,I,none,notes,flags){
   else if(!wet) slot('Hands', f>=30 ? [I('Yukon glove','waterproof \u2014 the marsh soaks your hands even on a dry day'), I('Kenai glove','dry-only alt for calling dexterity',{opt:true})] : [I('Northstar glove','waterproof, warm')]);
   else if(f>=32) slot('Hands',[I('Yukon glove','waterproof \u2014 light warmth')]);
   else slot('Hands',[I('Northstar glove','waterproof and warm')]);
-  slot('Feet',[I('Waders cover it','boot-foot'), I('ULTRA Merino Crew Sock','+ heavy sock if frigid')]);
-  notes.push('The waders are your waterproofing \u2014 everything else layers underneath to the day.');
+  if(dry){
+    slot('Feet',[I('Danner lace-up boots','best on dry ground'), I('Ankle Mud Boot','swap in for puddles / mud',{opt:true}), I('ULTRA Merino Crew Sock','base sock')]);
+  } else {
+    slot('Feet',[I('Waders cover it','boot-foot'), I('ULTRA Merino Crew Sock','+ heavy sock if frigid')]);
+  }
+  notes.push(dry ? 'Dry-field setup \u2014 boots and pants, no waders. Watch for puddles and mud; the mud boot swaps in if the ground is wet. A soft shell blocks wind; the HD Flex only if rain moves in.' : 'The waders are your waterproofing \u2014 everything else layers underneath to the day.');
   if(f>=68) notes.push('Hot early-season sit \u2014 go light and plan to get wet. Sun, bugs, and hydration matter more than layers today.');
   if(f<52) notes.push('It is a static sit like deer: cold builds up sitting still, so layer for the coldest stretch, not the walk to the blind.');
   if(f<48) flags.push({kind:'info',ic:'\uD83E\uDDCA',txt:'<b>Layering under the shell:</b> fleece (your Peloton) is the under-shell insulation \u2014 the down jackets are outer-fit and would compress. Base + fleece + HD Flex runs to about 30\u00B0 and pairs better with wader bibs; below 30\u00B0 the Gale Force takes over.'});
@@ -934,6 +983,9 @@ function render(){
   const isDeer=S.mode==='deer', aS=document.getElementById('actSeg'), aC=document.getElementById('actCap');
   if(aS){ aS.hidden=!isDeer; [].forEach.call(aS.querySelectorAll('button'),x=>x.setAttribute('aria-pressed', x.dataset.act===S.act)); }
   if(aC){ aC.hidden=!isDeer; aC.textContent = S.act==='high'?'still-hunt \u00b7 moving with sits' : S.act==='medium'?'mile-plus walk in \u00b7 then sit' : 'short walk in \u00b7 then sit'; }
+  const isWf=S.mode==='waterfowl', wS=document.getElementById('wfSeg'), wC=document.getElementById('wfCap');
+  if(wS){ wS.hidden=!isWf; [].forEach.call(wS.querySelectorAll('button'),x=>x.setAttribute('aria-pressed', x.dataset.wf===S.wfEnv)); }
+  if(wC){ wC.hidden=!isWf; wC.textContent = S.wfEnv==='dry' ? 'boots \u00b7 dry blind / field' : 'waders \u00b7 water & mud'; }
   const w=activeWx();
   const f=Math.round(w.feels), tc=thermalColor(w.feels);
   document.documentElement.style.setProperty('--thermal', tc);
@@ -982,21 +1034,23 @@ function renderCloset(){
   const wrap=document.getElementById('catalog'); wrap.innerHTML='';
   const all=OWNED.map(x=>Object.assign({},x,{custom:false})).concat(customItems().map(x=>Object.assign({},x,{custom:true})));
   CAT_GROUPS.forEach(g=>{
-    const items=all.filter(x=>x.cat===g[0]);
+    var seenN={}; const items=all.filter(function(x){ if(x.cat!==g[0]) return false; if(seenN[x.name]) return false; seenN[x.name]=1; return true; });
     if(!items.length) return;
     const div=document.createElement('div'); div.className='group';
     div.innerHTML='<h3><span>'+g[1]+'</span><span>'+items.length+'</span></h3>';
     items.forEach(it=>{
-      const row=document.createElement('div'); row.className='gear';
-      const packed=isPacked(it.name);
-      if(tripOn){ row.classList.add('pickable'); row.classList.add(packed?'packed':'unpacked'); }
-      const range=(it.tmin!=null&&it.tmax!=null)?('<span class="grange">'+Math.round(it.tmin)+'\u2013'+Math.round(it.tmax)+'\u00B0</span>'):'';
-      const added=it.custom?'<span class="added">ADDED</span>':'';
-      const rm=(it.custom&&!tripOn)?'<button class="rm" title="Remove" data-rm="'+esc(it.name)+'">\u00D7</button>':'';
-      const pick=tripOn?'<span class="pick"></span>':'';
-      row.innerHTML=pick+'<span class="gname">'+esc(it.name)+badgeHTML(it)+'</span>'+range+added+rm;
-      if(tripOn){ row.setAttribute('data-pick', it.name); }
-      div.appendChild(row);
+      try{
+        const row=document.createElement('div'); row.className='gear';
+        const packed=isPacked(it.name);
+        if(tripOn){ row.classList.add('pickable'); row.classList.add(packed?'packed':'unpacked'); }
+        const range=(it.tmin!=null&&it.tmax!=null)?('<span class="grange">'+Math.round(it.tmin)+'\u2013'+Math.round(it.tmax)+'\u00B0</span>'):'';
+        const added=it.custom?'<span class="added">ADDED</span>':'';
+        const rm=(it.custom&&!tripOn)?'<button class="rm" title="Remove" data-rm="'+esc(it.name)+'">\u00D7</button>':'';
+        const pick=tripOn?'<span class="pick"></span>':'';
+        row.innerHTML=pick+'<span class="gname">'+esc(it.name)+badgeHTML(it)+'</span>'+range+added+rm;
+        if(tripOn){ row.setAttribute('data-pick', it.name); }
+        div.appendChild(row);
+      }catch(e){ /* skip a malformed item rather than abort the whole closet */ }
     });
     wrap.appendChild(div);
   });
@@ -1213,6 +1267,7 @@ document.getElementById('clearHome').onclick=clearHome;
 document.getElementById('windowSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.win=b.dataset.win; [].forEach.call(document.querySelectorAll('#windowSeg button'),x=>x.setAttribute('aria-pressed', x===b)); render(); });
 document.getElementById('modeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.mode=b.dataset.mode; [].forEach.call(document.querySelectorAll('#modeSeg button'),x=>x.setAttribute('aria-pressed', x===b)); render(); });
 document.getElementById('actSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.act=b.dataset.act; [].forEach.call(document.querySelectorAll('#actSeg button'),x=>x.setAttribute('aria-pressed', x===b)); render(); });
+document.getElementById('wfSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.wfEnv=b.dataset.wf; [].forEach.call(document.querySelectorAll('#wfSeg button'),x=>x.setAttribute('aria-pressed', x===b)); render(); });
 [].forEach.call(document.querySelectorAll('.tab'),t=> t.onclick=()=>setView(t.dataset.view) );
 
 /* startup: if a home spot is pinned, load it straight away */
