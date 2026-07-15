@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Field Kit v1.75</title>
+<title>Field Kit v1.78</title>
 <meta name="theme-color" content="#14161A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -169,6 +169,8 @@
   .gear .b{font-family:'JetBrains Mono';font-size:.5rem;font-weight:700;letter-spacing:.06em;padding:1px 4px;border-radius:3px;border:1px solid var(--faint);color:var(--faint)}
   .gear .b.q{color:#9ec7a6;border-color:#3d5a44}
   .gear .b.w{color:#7fb0d6;border-color:#2f4a5e}
+  .gear .b.pat{color:#c2a878;border-color:#6b5836}
+  .gear .b.pat.blaze{color:#f0913a;border-color:#8a5220}
   .gear .grange{font-family:'JetBrains Mono';font-size:.72rem;color:var(--muted);white-space:nowrap}
   .gear .added{font-family:'JetBrains Mono';font-size:.5rem;font-weight:700;color:var(--mode);border:1px solid var(--mode);border-radius:3px;padding:1px 4px;letter-spacing:.06em}
   .gear .rm{background:none;border:none;color:var(--faint);font-size:1.15rem;cursor:pointer;padding:2px 6px;line-height:1}
@@ -351,14 +353,6 @@
     <div class="add-status hidden" id="addStatus"></div>
     <div id="gearPreview"></div>
   </section>
-  <section class="card add-card">
-    <div class="lbl">Edit closet</div>
-    <div class="add-row" style="align-items:center;justify-content:space-between">
-      <span class="add-example" style="margin:0">Turn on to delete gear. Then open the Closet &mdash; each piece gets a Delete button. Deleting a built-in piece is permanent.</span>
-      <button class="btn ghost sm" id="editToggle" role="switch" aria-pressed="false">Edit mode</button>
-    </div>
-    <div class="add-example">Edit mode: <b id="editCap">off</b></div>
-  </section>
   <div class="edit-banner" id="editBanner" hidden>Edit mode is ON &mdash; tap Delete on a piece, then confirm. Turn it off in Setup when done.</div>
   <div id="catalog"></div>
 </section>
@@ -376,6 +370,11 @@
     </div>
   </section>
   <section class="card setup-card">
+    <h3>Edit closet</h3>
+    <p>Turn this on to remove gear, then open the <b>Closet</b> &mdash; each piece gets a Delete button (two taps to confirm). Deleting a built-in piece is permanent.</p>
+    <div class="setrow"><span class="k">Edit mode</span><button class="btn ghost sm" id="editToggle" role="switch" aria-pressed="false">Edit mode: <b id="editCap">off</b></button></div>
+  </section>
+  <section class="card setup-card">
     <h3>Gear advisor</h3>
     <p>Ask about a piece you are considering &mdash; how it fits what you own &mdash; or why the loadout logic does what it does. Answers are grounded in your closet.</p>
     <div class="adv-ex" id="advEx"></div>
@@ -388,7 +387,7 @@
   </section>
   <section class="card setup-card">
     <h3>About</h3>
-    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.75</span></div>
+    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.78</span></div>
     <div class="setrow"><span class="k">Weather</span><span class="mono">Open-Meteo &middot; no key</span></div>
     <div class="setrow"><span class="k">Place name</span><span class="mono">BigDataCloud</span></div>
     <div class="setrow"><span class="k">Gear specs</span><span class="mono">Claude &middot; your key</span></div>
@@ -418,7 +417,7 @@ try{ document.getElementById("favicon").href=ICON;
   var __mani={name:"KUIU Field Kit",short_name:"Field Kit",display:"standalone",background_color:"#141E2A",theme_color:"#14161A",start_url:".",icons:[{src:ICON,sizes:"192x192",type:"image/png"},{src:ICON,sizes:"512x512",type:"image/png"}]};
   document.getElementById("manifestLink").href=URL.createObjectURL(new Blob([JSON.stringify(__mani)],{type:"application/manifest+json"}));
 }catch(e){}
-const S = { lat:null, lon:null, windows:null, win:'dawn', mode:'deer', act:'light', wfEnv:'marsh', locName:'', view:'loadout', manual:{on:false, temp:45, wind:5, wet:false} };
+const S = { lat:null, lon:null, elev:null, windows:null, win:'dawn', mode:'deer', act:'light', wfEnv:'marsh', locName:'', view:'loadout', manual:{on:false, temp:45, wind:5, wet:false} };
 const HOUR = 3600*1000;
 
 /* guarded storage (works on Netlify; degrades to memory in sandboxed previews) */
@@ -439,48 +438,48 @@ let homeMem = lsGet('fk_home', null);
 
 /* owned closet (data for the Closet tab + custom-item comparison) */
 const OWNED = [
-  {name:'120 Merino LS', cat:'base', tmin:50, tmax:75, disc:['deer','upland','waterfowl'], q:true},
-  {name:'120 Merino SS', cat:'base', tmin:62, tmax:85, disc:['deer','upland','waterfowl'], q:true},
-  {name:'Encounter LT shirt', cat:'shirt', tmin:55, tmax:85, disc:['deer','upland']},
-  {name:'Upland shirt', cat:'shirt', tmin:50, tmax:80, disc:['upland']},
-  {name:'Tiburon Snap Shirt', cat:'shirt', tmin:55, tmax:90, disc:['deer','upland','waterfowl'], q:true},
-  {name:'Peloton 118', cat:'base', tmin:30, tmax:60, disc:['deer','upland','waterfowl']},
-  {name:'Pro Merino 200 Zip-T', cat:'base', tmin:30, tmax:58, disc:['deer','upland','waterfowl'], q:true},
-  {name:'Vital PRO top', cat:'base', tmin:0, tmax:45, disc:['deer','upland','waterfowl']},
-  {name:'Peloton 200 Zip-T', cat:'mid', tmin:20, tmax:52, disc:['deer','upland','waterfowl']},
-  {name:'Rubicon jacket', cat:'softshell', tmin:40, tmax:60, disc:['deer','upland'], w:true},
-  {name:'Guide DCS jacket', cat:'softshell', tmin:35, tmax:65, disc:['deer','upland'], w:true},
-  {name:'Axis Hybrid Hooded jacket', cat:'softshell', tmin:32, tmax:58, disc:['deer','upland'], q:true, w:true},
-  {name:'Kutana Gale Force pant', cat:'pant', tmin:0, tmax:35, disc:['deer'], w:true, wp:true},
-  {name:'Proximity jacket', cat:'insulation', tmin:30, tmax:52, disc:['deer','upland','waterfowl'], q:true, w:true},
-  {name:'Super Down PRO jacket', cat:'insulation', tmin:15, tmax:38, disc:['deer','waterfowl'], w:true},
-  {name:'Super Down Haven jacket', cat:'insulation', tmin:0, tmax:28, disc:['deer','waterfowl'], q:true, w:true},
-  {name:'HD Flex Storm Shell', cat:'shell', tmin:0, tmax:75, disc:['deer','upland','waterfowl'], w:true, wp:true},
-  {name:'Kutana Storm Shell jacket', cat:'shell', tmin:0, tmax:75, disc:['deer','upland','waterfowl'], w:true, wp:true},
-  {name:'Kutana Gale Force jacket', cat:'shell', tmin:0, tmax:45, disc:['deer','waterfowl'], w:true, wp:true},
-  {name:'Kutana Storm Shell pant', cat:'pant', tmin:0, tmax:75, disc:['deer','upland'], w:true, wp:true},
-  {name:'PRO HD Flex Zip Wader', cat:'wader', tmin:0, tmax:70, disc:['waterfowl'], wp:true},
-  {name:'Attack pant', cat:'pant', tmin:42, tmax:72, disc:['deer','upland']},
-  {name:'Encounter pant', cat:'pant', tmin:28, tmax:60, disc:['deer'], q:true},
-  {name:'Tiburon pant', cat:'pant', tmin:52, tmax:95, disc:['deer','upland']},
-  {name:'Pro Brush pant', cat:'pant', tmin:25, tmax:70, disc:['upland']},
-  {name:'Vital PRO bottoms', cat:'base', tmin:0, tmax:45, disc:['deer','upland','waterfowl']},
-  {name:'Encounter 200 Fleece Bottom', cat:'base', tmin:15, tmax:48, disc:['deer','upland','waterfowl'], q:true},
-  {name:'Pro Hat - Valo', cat:'headwear', tmin:45, tmax:95, disc:['deer','upland','waterfowl']},
-  {name:'Pro Hat - Orange', cat:'headwear', tmin:45, tmax:95, disc:['deer']},
-  {name:'Kenai beanie', cat:'headwear', tmin:25, tmax:50, disc:['deer','upland','waterfowl']},
-  {name:'Proximity beanie', cat:'headwear', tmin:0, tmax:35, disc:['deer','upland','waterfowl'], q:true},
-  {name:'Proximity neck gaiter', cat:'accessory', tmin:0, tmax:45, disc:['deer','waterfowl']},
-  {name:'Upland Field Vest', cat:'accessory', tmin:null, tmax:null, disc:['upland']},
-  {name:'Blaze Orange Vest', cat:'accessory', tmin:null, tmax:null, disc:['deer']},
-  {name:'ULTRA Merino Crew Sock', cat:'boots', tmin:null, tmax:null, disc:['deer','upland','waterfowl']},
-  {name:'Precision glove', cat:'gloves', tmin:45, tmax:70, disc:['deer','upland']},
-  {name:'Yukon glove', cat:'gloves', tmin:33, tmax:52, disc:['deer','upland','waterfowl']},
-  {name:'Kenai glove', cat:'gloves', tmin:22, tmax:40, disc:['deer','upland','waterfowl']},
-  {name:'Northstar glove', cat:'gloves', tmin:0, tmax:28, disc:['deer','upland','waterfowl']},
-  {name:'Ankle Mud Boot', cat:'boots', tmin:40, tmax:75, disc:['deer','upland','waterfowl'], wp:true},
-  {name:'Danner lace-up boots', cat:'boots', tmin:20, tmax:80, disc:['deer','upland']},
-  {name:'HD Mud Boot', cat:'boots', tmin:0, tmax:48, disc:['deer','waterfowl'], wp:true}
+  {name:'120 Merino LS', cat:'base', tmin:50, tmax:75, disc:['deer','upland','waterfowl'], q:true, pattern:'Valo'},
+  {name:'120 Merino SS', cat:'base', tmin:62, tmax:85, disc:['deer','upland','waterfowl'], q:true, pattern:'Valo'},
+  {name:'Encounter LT shirt', cat:'shirt', tmin:55, tmax:85, disc:['deer','upland'], pattern:'Valo'},
+  {name:'Upland shirt', cat:'shirt', tmin:50, tmax:80, disc:['upland'], pattern:'Valo'},
+  {name:'Tiburon Snap Shirt', cat:'shirt', tmin:55, tmax:90, disc:['deer','upland','waterfowl'], q:true, pattern:'Valo'},
+  {name:'Peloton 118', cat:'base', tmin:30, tmax:60, disc:['deer','upland','waterfowl'], pattern:'Valo'},
+  {name:'Pro Merino 200 Zip-T', cat:'base', tmin:30, tmax:58, disc:['deer','upland','waterfowl'], q:true, pattern:'Valo'},
+  {name:'Vital PRO top', cat:'base', tmin:0, tmax:45, disc:['deer','upland','waterfowl'], pattern:'Valo'},
+  {name:'Peloton 200 Zip-T', cat:'mid', tmin:20, tmax:52, disc:['deer','upland','waterfowl'], pattern:'Valo'},
+  {name:'Rubicon jacket', cat:'softshell', tmin:40, tmax:60, disc:['deer','upland'], w:true, pattern:'Valo'},
+  {name:'Guide DCS jacket', cat:'softshell', tmin:35, tmax:65, disc:['deer','upland'], w:true, pattern:'Valo'},
+  {name:'Axis Hybrid Hooded jacket', cat:'softshell', tmin:32, tmax:58, disc:['deer','upland'], q:true, w:true, pattern:'Valo'},
+  {name:'Kutana Gale Force pant', cat:'pant', tmin:0, tmax:35, disc:['deer'], w:true, wp:true, pattern:'Valo'},
+  {name:'Proximity jacket', cat:'insulation', tmin:30, tmax:52, disc:['deer','upland','waterfowl'], q:true, w:true, pattern:'Valo'},
+  {name:'Super Down PRO jacket', cat:'insulation', tmin:15, tmax:38, disc:['deer','waterfowl'], w:true, pattern:'Valo'},
+  {name:'Super Down Haven jacket', cat:'insulation', tmin:0, tmax:28, disc:['deer','waterfowl'], q:true, w:true, pattern:'Valo'},
+  {name:'HD Flex Storm Shell', cat:'shell', tmin:0, tmax:75, disc:['deer','upland','waterfowl'], w:true, wp:true, pattern:'Valo'},
+  {name:'Kutana Storm Shell jacket', cat:'shell', tmin:0, tmax:75, disc:['deer','upland','waterfowl'], w:true, wp:true, pattern:'Valo'},
+  {name:'Kutana Gale Force jacket', cat:'shell', tmin:0, tmax:45, disc:['deer','waterfowl'], w:true, wp:true, pattern:'Valo'},
+  {name:'Kutana Storm Shell pant', cat:'pant', tmin:0, tmax:75, disc:['deer','upland'], w:true, wp:true, pattern:'Valo'},
+  {name:'PRO HD Flex Zip Wader', cat:'wader', tmin:0, tmax:70, disc:['waterfowl'], wp:true, pattern:'Valo'},
+  {name:'Attack pant', cat:'pant', tmin:42, tmax:72, disc:['deer','upland'], pattern:'Valo'},
+  {name:'Encounter pant', cat:'pant', tmin:28, tmax:60, disc:['deer'], q:true, pattern:'Valo'},
+  {name:'Tiburon pant', cat:'pant', tmin:52, tmax:95, disc:['deer','upland'], pattern:'Valo'},
+  {name:'Pro Brush pant', cat:'pant', tmin:25, tmax:70, disc:['upland'], pattern:'Valo'},
+  {name:'Vital PRO bottoms', cat:'base', tmin:0, tmax:45, disc:['deer','upland','waterfowl'], pattern:'Valo'},
+  {name:'Encounter 200 Fleece Bottom', cat:'base', tmin:15, tmax:48, disc:['deer','upland','waterfowl'], q:true, pattern:'Valo'},
+  {name:'Pro Hat - Valo', cat:'headwear', tmin:45, tmax:95, disc:['deer','upland','waterfowl'], pattern:'Valo'},
+  {name:'Pro Hat - Orange', cat:'headwear', tmin:45, tmax:95, disc:['deer'], pattern:'Blaze'},
+  {name:'Kenai beanie', cat:'headwear', tmin:25, tmax:50, disc:['deer','upland','waterfowl'], pattern:'Valo'},
+  {name:'Proximity beanie', cat:'headwear', tmin:0, tmax:35, disc:['deer','upland','waterfowl'], q:true, pattern:'Valo'},
+  {name:'Proximity neck gaiter', cat:'accessory', tmin:0, tmax:45, disc:['deer','waterfowl'], pattern:'Valo'},
+  {name:'Upland Field Vest', cat:'accessory', tmin:null, tmax:null, disc:['upland'], pattern:'Valo'},
+  {name:'Blaze Orange Vest', cat:'accessory', tmin:null, tmax:null, disc:['deer'], pattern:'Blaze'},
+  {name:'ULTRA Merino Crew Sock', cat:'boots', tmin:null, tmax:null, disc:['deer','upland','waterfowl'], pattern:'Valo'},
+  {name:'Precision glove', cat:'gloves', tmin:45, tmax:70, disc:['deer','upland'], pattern:'Valo'},
+  {name:'Yukon glove', cat:'gloves', tmin:33, tmax:52, disc:['deer','upland','waterfowl'], pattern:'Valo'},
+  {name:'Kenai glove', cat:'gloves', tmin:22, tmax:40, disc:['deer','upland','waterfowl'], pattern:'Valo'},
+  {name:'Northstar glove', cat:'gloves', tmin:0, tmax:28, disc:['deer','upland','waterfowl'], pattern:'Valo'},
+  {name:'Ankle Mud Boot', cat:'boots', tmin:40, tmax:75, disc:['deer','upland','waterfowl'], wp:true, pattern:'Valo'},
+  {name:'Danner lace-up boots', cat:'boots', tmin:20, tmax:80, disc:['deer','upland'], pattern:'Valo'},
+  {name:'HD Mud Boot', cat:'boots', tmin:0, tmax:48, disc:['deer','waterfowl'], wp:true, pattern:'Valo'}
 ];
 const CAT_GROUPS = [
   ['insulation','Insulation'],['softshell','Soft shells'],['shell','Storm shells'],
@@ -608,6 +607,7 @@ async function loadWeather(){
 }
 function buildWindows(d){
   if(!d.hourly||!d.daily) return null;
+  if(typeof d.elevation==='number') S.elev=d.elevation;   // meters, for camo terrain inference
   const off=d.utc_offset_seconds||0, H=d.hourly;
   if(!Array.isArray(H.time)||!H.time.length||!Array.isArray(H.temperature_2m)||!Array.isArray(H.apparent_temperature)) return null;
   ['precipitation','precipitation_probability','wind_speed_10m','wind_gusts_10m','weather_code'].forEach(function(k){ if(!Array.isArray(H[k])) H[k]=H.time.map(function(){return 0;}); });
@@ -628,6 +628,75 @@ function buildWindows(d){
 }
 
 /* recommendation engine */
+// --- KUIU camo pattern advisory (informational; derived from GPS region + mode + date) ---
+// Grounded in KUIU's own guidance: Vias = high-contrast macro for open/rocky/alpine, long range;
+// Verde = green-based, best in spring/early-season green-up and mixed timber; Valo = low-contrast
+// macro+micro for dry/dormant/deciduous (post frost/dry-out), close AND long range.
+function regionArchetype(lat, lon, elevM){
+  if(lat==null||lon==null) return null;
+  var elevFt = (typeof elevM==='number') ? elevM*3.28084 : null;
+  // High country anywhere in the mountain West -> alpine/open
+  if(elevFt!=null && elevFt>=6500 && lon < -102) return 'alpine';
+  // Arid Southwest: low-latitude interior West
+  if(lon < -102 && lat >= 31 && lat <= 42 && lon >= -118) return 'arid_west';
+  // Pacific / far West open & broken country
+  if(lon < -110) return 'west_open';
+  // Great Plains / prairie
+  if(lon >= -104 && lon < -95) return 'plains';
+  // Southeast (Gulf/SE lowland hardwoods & fields)
+  if(lat < 36 && lon >= -95) return 'southeast';
+  // Default eastern/midwestern forest
+  return 'eastern_forest';
+}
+// vegetation state from month + latitude (northern greens up later, browns out earlier)
+function vegState(month, lat){
+  var north = (lat!=null && lat >= 40);
+  // month is 1-12
+  if(month>=4 && month<=6) return 'green';                 // spring green-up
+  if(month>=7 && month<=8) return north?'green':'transitional';
+  if(month===9) return north?'transitional':'green';       // early fall: south still green
+  if(month>=10 && month<=11) return north?'dormant':'transitional';
+  return 'dormant';                                        // Dec-Mar: dormant/leaf-off
+}
+function encounterFor(mode){
+  if(mode==='deer') return 'close';        // stand / ground: close-range breakup matters
+  if(mode==='upland') return 'moving';     // on foot, mid-range, mixed cover
+  return 'variable';                       // waterfowl: blind/decoys, usually close
+}
+function camoAdvice(lat, lon, elevM, mode, dateObj){
+  var region = regionArchetype(lat, lon, elevM);
+  if(!region) return null;
+  var month = (dateObj||new Date()).getMonth()+1;
+  var veg = vegState(month, lat);
+  var enc = encounterFor(mode);
+  var pattern, why, alt='';
+  // 1) Open/rocky/alpine + able to shoot long -> Vias (macro high-contrast, weak up close)
+  if((region==='alpine'||region==='west_open') && enc!=='close'){
+    pattern='Vias'; why='open, broken country where breakup at distance matters most';
+    alt='Valo once vegetation dries out, or if encounters are close';
+  }
+  // 2) Arid / sage / prairie -> Valo year-round (sparse, light, dormant tones)
+  else if(region==='arid_west' || region==='plains'){
+    pattern='Valo'; why='arid, low, light-toned cover where Valo\u2019s muted palette blends year-round';
+    alt='Verde in any green-up flush';
+  }
+  // 3) Green vegetation present -> Verde (green-based)
+  else if(veg==='green'){
+    pattern='Verde'; why='green foliage is up \u2014 Verde\u2019s green base blends the living cover';
+    alt='Valo once the woods brown out / after frost';
+  }
+  // 4) Dormant / dry / leaf-off -> Valo (close+long dual-scale), or Vias if open & long shots
+  else if(veg==='dormant'){
+    if((region==='alpine'||region==='west_open') && enc!=='close'){ pattern='Vias'; why='open late-season country, long shots'; alt='Valo for closer cover'; }
+    else { pattern='Valo'; why='dormant, dried, or leaf-off cover \u2014 Valo\u2019s fall\u2192spring palette fits, and its micro pattern still breaks up close'; alt='Verde if you catch an early-season green stretch'; }
+  }
+  // 5) Transitional -> lean Valo for close hunts, Verde if still greenish
+  else {
+    if(enc==='close'){ pattern='Valo'; why='transitional cover trending dormant; Valo holds close-range breakup'; alt='Verde if greenery is still dominant'; }
+    else { pattern='Verde'; why='transitional cover with green still present'; alt='Valo as it dries out'; }
+  }
+  return {pattern:pattern, why:why, alt:alt, region:region, veg:veg};
+}
 function recommend(mode, w){
   const feels=Math.round(w.feels), air=Math.round(w.temp), wind=Math.round(w.wind), gust=Math.round(w.gust), pp=Math.round(w.pprob||0), pin=w.precip||0;
   const wet=pp>=50||pin>0.02, windy=gust>=20||wind>=15;
@@ -683,6 +752,9 @@ function recommend(mode, w){
       else sl.items.push( I(p.name,(p.note||'added \u2014 also fits'),{opt:true, added:true}) );
     });
   })();
+  // camo advisory (informational) - which KUIU pattern fits this region/hunt/season
+  var ca = camoAdvice(S.lat, S.lon, S.elev, mode, new Date());
+  if(ca){ notes.push('<b>Camo \u00b7 '+ca.pattern+'.</b> KUIU\u2019s '+ca.pattern+' fits here \u2014 '+ca.why+(ca.alt?'. ('+ca.alt+')':'')+'.'); }
   return {slots, notes, flags, dress:f};
 }
 function deerKit(f,wet,windy,slot,I,none,notes,flags,opts){
@@ -1063,6 +1135,7 @@ function render(){
 /* closet rendering */
 function badgeHTML(it){
   let b='';
+  if(it.pattern) b+='<span class="b pat'+(it.pattern==='Blaze'?' blaze':'')+'">'+esc(it.pattern.toUpperCase())+'</span>';
   if(it.q) b+='<span class="b q">QUIET</span>';
   if(it.wp) b+='<span class="b w">WATERPROOF</span>';
   else if(it.w) b+='<span class="b w">WIND</span>';
