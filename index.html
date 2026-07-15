@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Field Kit v1.78</title>
+<title>Field Kit v1.81</title>
 <meta name="theme-color" content="#14161A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -171,6 +171,25 @@
   .gear .b.w{color:#7fb0d6;border-color:#2f4a5e}
   .gear .b.pat{color:#c2a878;border-color:#6b5836}
   .gear .b.pat.blaze{color:#f0913a;border-color:#8a5220}
+  .gear.expandable{cursor:pointer}
+  .gear .chev{margin-left:auto;color:var(--faint);font-size:.7rem;transition:transform .15s;padding-left:6px}
+  .gear.open .chev{transform:rotate(90deg)}
+  .gear-detail{display:none;padding:10px 12px 12px;margin:2px 0 8px;border-left:2px solid var(--mode);background:rgba(255,255,255,.02);border-radius:0 6px 6px 0}
+  .gear-detail.show{display:block}
+  .gear-detail .gd-row{display:flex;justify-content:space-between;gap:10px;font-size:.78rem;padding:3px 0;color:var(--ink)}
+  .gear-detail .gd-k{color:var(--faint)}
+  .gear-detail .gd-note{font-size:.76rem;color:var(--faint);margin-top:6px;font-style:italic}
+  .gear-detail a.gd-link{display:inline-block;margin-top:10px;font-size:.78rem;color:var(--mode);text-decoration:none;border:1px solid var(--mode);border-radius:6px;padding:6px 10px}
+  .gear-detail a.gd-link:active{opacity:.7}
+  .gear-detail .gd-nonkuiu{font-size:.74rem;color:var(--faint);margin-top:8px}
+  .gd-edit{margin-top:8px;display:flex;flex-direction:column;gap:8px}
+  .gd-editrow{display:flex;gap:10px}
+  .gd-edit label{display:flex;flex-direction:column;gap:3px;font-size:.68rem;color:var(--faint);letter-spacing:.04em;text-transform:uppercase;flex:1}
+  .gd-edit label.gd-editfull{width:100%}
+  .gd-edit input{background:var(--panel,#1a1e1a);border:1px solid var(--faint);border-radius:6px;color:var(--ink);padding:7px 9px;font-size:.85rem;font-family:inherit}
+  .gd-edit input:focus{outline:none;border-color:var(--mode)}
+  .gd-editbtns{display:flex;align-items:center;gap:8px;margin-top:2px}
+  .gd-editedtag{font-family:'JetBrains Mono';font-size:.5rem;font-weight:700;color:var(--mode);border:1px solid var(--mode);border-radius:3px;padding:1px 4px;letter-spacing:.06em}
   .gear .grange{font-family:'JetBrains Mono';font-size:.72rem;color:var(--muted);white-space:nowrap}
   .gear .added{font-family:'JetBrains Mono';font-size:.5rem;font-weight:700;color:var(--mode);border:1px solid var(--mode);border-radius:3px;padding:1px 4px;letter-spacing:.06em}
   .gear .rm{background:none;border:none;color:var(--faint);font-size:1.15rem;cursor:pointer;padding:2px 6px;line-height:1}
@@ -354,6 +373,7 @@
     <div id="gearPreview"></div>
   </section>
   <div class="edit-banner" id="editBanner" hidden>Edit mode is ON &mdash; tap Delete on a piece, then confirm. Turn it off in Setup when done.</div>
+  <datalist id="fk-patlist"><option value="Valo"><option value="Verde"><option value="Vias"><option value="Blaze"><option value="Solid"><option value="Universal"></datalist>
   <div id="catalog"></div>
 </section>
 
@@ -370,11 +390,6 @@
     </div>
   </section>
   <section class="card setup-card">
-    <h3>Edit closet</h3>
-    <p>Turn this on to remove gear, then open the <b>Closet</b> &mdash; each piece gets a Delete button (two taps to confirm). Deleting a built-in piece is permanent.</p>
-    <div class="setrow"><span class="k">Edit mode</span><button class="btn ghost sm" id="editToggle" role="switch" aria-pressed="false">Edit mode: <b id="editCap">off</b></button></div>
-  </section>
-  <section class="card setup-card">
     <h3>Gear advisor</h3>
     <p>Ask about a piece you are considering &mdash; how it fits what you own &mdash; or why the loadout logic does what it does. Answers are grounded in your closet.</p>
     <div class="adv-ex" id="advEx"></div>
@@ -386,8 +401,13 @@
     <div class="adv-answer hidden" id="advAnswer"></div>
   </section>
   <section class="card setup-card">
+    <h3>Edit closet</h3>
+    <p>Turn this on to remove gear, then open the <b>Closet</b> &mdash; each piece gets a Delete button (two taps to confirm). Deleting a built-in piece is permanent.</p>
+    <div class="setrow"><span class="k">Edit mode</span><button class="btn ghost sm" id="editToggle" role="switch" aria-pressed="false">Edit mode: <b id="editCap">off</b></button></div>
+  </section>
+  <section class="card setup-card">
     <h3>About</h3>
-    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.78</span></div>
+    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.81</span></div>
     <div class="setrow"><span class="k">Weather</span><span class="mono">Open-Meteo &middot; no key</span></div>
     <div class="setrow"><span class="k">Place name</span><span class="mono">BigDataCloud</span></div>
     <div class="setrow"><span class="k">Gear specs</span><span class="mono">Claude &middot; your key</span></div>
@@ -431,6 +451,18 @@ let customMem = (function(){
 })();
 let removedMem = (function(){ var r=lsGet('fk_removed', []); return Array.isArray(r)?r.filter(function(x){return typeof x==='string'&&x.trim();}):[]; })();
 function isRemoved(name){ return removedMem.indexOf(name)>=0; }
+// per-item edits (built-in or custom): { "Item Name": {tmin?,tmax?,pattern?,url?} }
+let overridesMem = (function(){ var o=lsGet('fk_overrides', {}); return (o&&typeof o==='object'&&!Array.isArray(o))?o:{}; })();
+function withOverrides(it){
+  var ov=overridesMem[it.name]; if(!ov) return it;
+  var out=Object.assign({},it);
+  if(ov.tmin!=null && isFinite(ov.tmin)) out.tmin=ov.tmin;
+  if(ov.tmax!=null && isFinite(ov.tmax)) out.tmax=ov.tmax;
+  if(typeof ov.pattern==='string') out.pattern=ov.pattern;
+  if(typeof ov.url==='string' && ov.url.trim()) out.url=ov.url.trim();
+  out.edited=true;
+  return out;
+}
 var editMode = false;   // session-only: reset on reload so deletes stay deliberate
 let tripOn = lsGet('fk_trip_on', false);
 let tripSet = lsGet('fk_trip_set', []);   // array of catalog item names that are 'packed'
@@ -438,14 +470,14 @@ let homeMem = lsGet('fk_home', null);
 
 /* owned closet (data for the Closet tab + custom-item comparison) */
 const OWNED = [
-  {name:'120 Merino LS', cat:'base', tmin:50, tmax:75, disc:['deer','upland','waterfowl'], q:true, pattern:'Valo'},
-  {name:'120 Merino SS', cat:'base', tmin:62, tmax:85, disc:['deer','upland','waterfowl'], q:true, pattern:'Valo'},
+  {name:'120 Merino LS', cat:'base', tmin:50, tmax:75, disc:['deer','upland','waterfowl'], q:true, pattern:'Universal'},
+  {name:'120 Merino SS', cat:'base', tmin:62, tmax:85, disc:['deer','upland','waterfowl'], q:true, pattern:'Universal'},
   {name:'Encounter LT shirt', cat:'shirt', tmin:55, tmax:85, disc:['deer','upland'], pattern:'Valo'},
   {name:'Upland shirt', cat:'shirt', tmin:50, tmax:80, disc:['upland'], pattern:'Valo'},
   {name:'Tiburon Snap Shirt', cat:'shirt', tmin:55, tmax:90, disc:['deer','upland','waterfowl'], q:true, pattern:'Valo'},
-  {name:'Peloton 118', cat:'base', tmin:30, tmax:60, disc:['deer','upland','waterfowl'], pattern:'Valo'},
-  {name:'Pro Merino 200 Zip-T', cat:'base', tmin:30, tmax:58, disc:['deer','upland','waterfowl'], q:true, pattern:'Valo'},
-  {name:'Vital PRO top', cat:'base', tmin:0, tmax:45, disc:['deer','upland','waterfowl'], pattern:'Valo'},
+  {name:'Peloton 118', cat:'base', tmin:30, tmax:60, disc:['deer','upland','waterfowl'], pattern:'Universal'},
+  {name:'Pro Merino 200 Zip-T', cat:'base', tmin:30, tmax:58, disc:['deer','upland','waterfowl'], q:true, pattern:'Universal'},
+  {name:'Vital PRO top', cat:'base', tmin:0, tmax:45, disc:['deer','upland','waterfowl'], pattern:'Universal'},
   {name:'Peloton 200 Zip-T', cat:'mid', tmin:20, tmax:52, disc:['deer','upland','waterfowl'], pattern:'Valo'},
   {name:'Rubicon jacket', cat:'softshell', tmin:40, tmax:60, disc:['deer','upland'], w:true, pattern:'Valo'},
   {name:'Guide DCS jacket', cat:'softshell', tmin:35, tmax:65, disc:['deer','upland'], w:true, pattern:'Valo'},
@@ -463,8 +495,8 @@ const OWNED = [
   {name:'Encounter pant', cat:'pant', tmin:28, tmax:60, disc:['deer'], q:true, pattern:'Valo'},
   {name:'Tiburon pant', cat:'pant', tmin:52, tmax:95, disc:['deer','upland'], pattern:'Valo'},
   {name:'Pro Brush pant', cat:'pant', tmin:25, tmax:70, disc:['upland'], pattern:'Valo'},
-  {name:'Vital PRO bottoms', cat:'base', tmin:0, tmax:45, disc:['deer','upland','waterfowl'], pattern:'Valo'},
-  {name:'Encounter 200 Fleece Bottom', cat:'base', tmin:15, tmax:48, disc:['deer','upland','waterfowl'], q:true, pattern:'Valo'},
+  {name:'Vital PRO bottoms', cat:'base', tmin:0, tmax:45, disc:['deer','upland','waterfowl'], pattern:'Universal'},
+  {name:'Encounter 200 Fleece Bottom', cat:'base', tmin:15, tmax:48, disc:['deer','upland','waterfowl'], q:true, pattern:'Universal'},
   {name:'Pro Hat - Valo', cat:'headwear', tmin:45, tmax:95, disc:['deer','upland','waterfowl'], pattern:'Valo'},
   {name:'Pro Hat - Orange', cat:'headwear', tmin:45, tmax:95, disc:['deer'], pattern:'Blaze'},
   {name:'Kenai beanie', cat:'headwear', tmin:25, tmax:50, disc:['deer','upland','waterfowl'], pattern:'Valo'},
@@ -472,13 +504,13 @@ const OWNED = [
   {name:'Proximity neck gaiter', cat:'accessory', tmin:0, tmax:45, disc:['deer','waterfowl'], pattern:'Valo'},
   {name:'Upland Field Vest', cat:'accessory', tmin:null, tmax:null, disc:['upland'], pattern:'Valo'},
   {name:'Blaze Orange Vest', cat:'accessory', tmin:null, tmax:null, disc:['deer'], pattern:'Blaze'},
-  {name:'ULTRA Merino Crew Sock', cat:'boots', tmin:null, tmax:null, disc:['deer','upland','waterfowl'], pattern:'Valo'},
+  {name:'ULTRA Merino Crew Sock', cat:'boots', tmin:null, tmax:null, disc:['deer','upland','waterfowl'], pattern:'Universal'},
   {name:'Precision glove', cat:'gloves', tmin:45, tmax:70, disc:['deer','upland'], pattern:'Valo'},
   {name:'Yukon glove', cat:'gloves', tmin:33, tmax:52, disc:['deer','upland','waterfowl'], pattern:'Valo'},
   {name:'Kenai glove', cat:'gloves', tmin:22, tmax:40, disc:['deer','upland','waterfowl'], pattern:'Valo'},
   {name:'Northstar glove', cat:'gloves', tmin:0, tmax:28, disc:['deer','upland','waterfowl'], pattern:'Valo'},
   {name:'Ankle Mud Boot', cat:'boots', tmin:40, tmax:75, disc:['deer','upland','waterfowl'], wp:true, pattern:'Valo'},
-  {name:'Danner lace-up boots', cat:'boots', tmin:20, tmax:80, disc:['deer','upland'], pattern:'Valo'},
+  {name:'Danner lace-up boots', cat:'boots', tmin:20, tmax:80, disc:['deer','upland']},
   {name:'HD Mud Boot', cat:'boots', tmin:0, tmax:48, disc:['deer','waterfowl'], wp:true, pattern:'Valo'}
 ];
 const CAT_GROUPS = [
@@ -735,7 +767,7 @@ function recommend(mode, w){
   }
   // --- supplement pass: surface OWNED custom (added) pieces that fit this slot/temp/mode as options ---
   (function(){
-    var cust = customItems();
+    var cust = customItems().map(withOverrides);
     if(!cust.length) return;
     cust.forEach(function(p){
       if(isRemoved(p.name)) return;
@@ -931,7 +963,7 @@ const MODE_META = {
   waterfowl:{color:'var(--waterfowl)', label:'WATERFOWL \u00B7 BLIND'}
 };
 function customItems(){ return customMem; }
-function allGear(){ return OWNED.filter(function(x){return !isRemoved(x.name);}).map(function(x){return Object.assign({},x,{custom:false});}).concat(customItems().map(function(x){return Object.assign({},x,{custom:true});})); }
+function allGear(){ return OWNED.filter(function(x){return !isRemoved(x.name);}).map(function(x){return withOverrides(Object.assign({},x,{custom:false}));}).concat(customItems().map(function(x){return withOverrides(Object.assign({},x,{custom:true}));})); }
 function catName(txt){
   // resolve a slot item's display text to a catalog entry name (or null if it is a non-gear label)
   var base=String(txt).toLowerCase().split(' + ')[0].trim();
@@ -1135,7 +1167,7 @@ function render(){
 /* closet rendering */
 function badgeHTML(it){
   let b='';
-  if(it.pattern) b+='<span class="b pat'+(it.pattern==='Blaze'?' blaze':'')+'">'+esc(it.pattern.toUpperCase())+'</span>';
+  if(it.pattern && it.pattern!=='Universal') b+='<span class="b pat'+(it.pattern==='Blaze'?' blaze':'')+'">'+esc(it.pattern.toUpperCase())+'</span>';
   if(it.q) b+='<span class="b q">QUIET</span>';
   if(it.wp) b+='<span class="b w">WATERPROOF</span>';
   else if(it.w) b+='<span class="b w">WIND</span>';
@@ -1145,7 +1177,7 @@ function renderCloset(){
   const wrap=document.getElementById('catalog'); wrap.innerHTML='';
   var eb=document.getElementById('editBanner');
   if(eb){ eb.hidden=!editMode; }
-  const all=OWNED.filter(function(x){return !isRemoved(x.name);}).map(x=>Object.assign({},x,{custom:false})).concat(customItems().map(x=>Object.assign({},x,{custom:true})));
+  const all=OWNED.filter(function(x){return !isRemoved(x.name);}).map(x=>withOverrides(Object.assign({},x,{custom:false}))).concat(customItems().map(x=>withOverrides(Object.assign({},x,{custom:true}))));
   if(editMode) wrap.classList.add('editing'); else wrap.classList.remove('editing');
   CAT_GROUPS.forEach(g=>{
     var seenN={}; const items=all.filter(function(x){ if(x.cat!==g[0]) return false; if(seenN[x.name]) return false; seenN[x.name]=1; return true; });
@@ -1162,9 +1194,22 @@ function renderCloset(){
         // edit mode shows a delete control on EVERY piece; two-tap (delete -> confirm) so it is deliberate
         const del=(editMode&&!tripOn)?'<button class="del" title="Delete" data-del="'+esc(it.name)+'" data-builtin="'+(it.custom?'0':'1')+'">Delete</button><button class="delc" data-delc="'+esc(it.name)+'" hidden>Sure? Delete</button>':'';
         const pick=tripOn?'<span class="pick"></span>':'';
-        row.innerHTML=pick+'<span class="gname">'+esc(it.name)+badgeHTML(it)+'</span>'+range+added+del;
+        const expandable=!tripOn;                       // tap-to-expand when not packing a trip
+        const chev=expandable?'<span class="chev">\u203A</span>':'';
+        if(expandable) row.classList.add('expandable');
+        row.innerHTML=pick+'<span class="gname">'+esc(it.name)+badgeHTML(it)+'</span>'+range+added+del+chev;
         if(tripOn){ row.setAttribute('data-pick', it.name); }
         div.appendChild(row);
+        if(expandable){
+          const detail=document.createElement('div');
+          detail.innerHTML=gearDetailHTML(it);
+          const panel=detail.firstChild;
+          div.appendChild(panel);
+          row.onclick=function(e){
+            if(e.target.closest('.del,.delc')) return;   // don't expand when hitting delete controls
+            var open=panel.classList.toggle('show'); row.classList.toggle('open', open);
+          };
+        }
       }catch(e){ /* skip a malformed item rather than abort the whole closet */ }
     });
     wrap.appendChild(div);
@@ -1182,7 +1227,82 @@ function renderCloset(){
     c.onclick=function(e){ e.stopPropagation(); deleteGear(c.getAttribute('data-delc'), c.previousElementSibling.getAttribute('data-builtin')==='1'); };
   });
   if(tripOn){ wrap.querySelectorAll('[data-pick]').forEach(r=> r.onclick=()=>togglePacked(r.getAttribute('data-pick')) ); }
+  // edit-form: don't let taps inside the form collapse the card
+  wrap.querySelectorAll('.gd-edit').forEach(function(fm){ fm.onclick=function(e){ e.stopPropagation(); }; });
+  wrap.querySelectorAll('[data-save]').forEach(function(btn){
+    btn.onclick=function(e){ e.stopPropagation(); saveGearEdit(btn.getAttribute('data-save'), btn.closest('.gd-edit')); };
+  });
+  wrap.querySelectorAll('[data-reset]').forEach(function(btn){
+    btn.onclick=function(e){ e.stopPropagation(); resetGearEdit(btn.getAttribute('data-reset')); };
+  });
   paintTripBar();
+}
+function saveGearEdit(name, formEl){
+  if(!formEl) return;
+  var g=function(k){ var el=formEl.querySelector('[data-ed="'+k+'"]'); return el?el.value.trim():''; };
+  var ov={};
+  var mn=g('tmin'), mx=g('tmax'), pat=g('pattern'), url=g('url');
+  if(mn!==''&&isFinite(+mn)) ov.tmin=+mn;
+  if(mx!==''&&isFinite(+mx)) ov.tmax=+mx;
+  if(pat!=='') ov.pattern=pat;
+  if(url!=='') ov.url=url;
+  if(Object.keys(ov).length) overridesMem[name]=ov; else delete overridesMem[name];
+  lsSet('fk_overrides', overridesMem);
+  renderCloset(); if(S.windows||S.manual.on) render();
+}
+function resetGearEdit(name){
+  delete overridesMem[name]; lsSet('fk_overrides', overridesMem);
+  renderCloset(); if(S.windows||S.manual.on) render();
+}
+function isKuiuItem(it){ return !/danner/i.test(it.name); }   // Danner is a 3rd-party brand, not KUIU
+function isCamoRelevant(it){ return !(it.cat==='base' || /sock/i.test(it.name) || it.pattern==='Universal'); } // base layers & socks are worn underneath - pattern is irrelevant
+function kuiuSearchURL(name){
+  // robust: KUIU product slugs rotate and 404, so link to a storefront search that always resolves.
+  // strip our app-only pattern/color suffixes (e.g. "Pro Hat - Valo" -> "Pro Hat") for a cleaner query.
+  var q=String(name).replace(/\s*-\s*(Valo|Orange|Blaze).*/i,'').trim();
+  return 'https://www.kuiu.com/search?q='+encodeURIComponent(q);
+}
+function discLabels(disc){
+  if(!disc||!disc.length) return 'All';
+  var map={deer:'Whitetail',upland:'Upland',waterfowl:'Waterfowl'};
+  return disc.map(function(d){return map[d]||d;}).join(', ');
+}
+function catLabel(cat){ for(var i=0;i<CAT_GROUPS.length;i++){ if(CAT_GROUPS[i][0]===cat) return CAT_GROUPS[i][1]; } return cat; }
+function gearDetailHTML(it){
+  var rows='';
+  var camo = isCamoRelevant(it) ? it.pattern : null;   // base/socks: no camo pattern
+  var tags=[it.q?'Quiet':null,it.wp?'Waterproof':(it.w?'Wind-resistant':null),camo].filter(Boolean).join(' \u00b7 ');
+  rows+='<div class="gd-row"><span class="gd-k">Category</span><span>'+esc(catLabel(it.cat))+'</span></div>';
+  if(it.tmin!=null&&it.tmax!=null) rows+='<div class="gd-row"><span class="gd-k">Temp range</span><span>'+Math.round(it.tmin)+'\u2013'+Math.round(it.tmax)+'\u00B0F</span></div>';
+  rows+='<div class="gd-row"><span class="gd-k">Best for</span><span>'+esc(discLabels(it.disc))+'</span></div>';
+  if(tags) rows+='<div class="gd-row"><span class="gd-k">Traits</span><span>'+esc(tags)+'</span></div>';
+  var baseNote = isCamoRelevant(it) ? '' : '<div class="gd-note">Worn underneath \u2014 camo pattern doesn\u2019t apply.</div>';
+  var note=(it.note?'<div class="gd-note">'+esc(it.note)+'</div>':'')+baseNote;
+  var linkURL = (typeof it.url==='string' && it.url.trim()) ? it.url.trim() : (isKuiuItem(it) ? kuiuSearchURL(it.name) : null);
+  var linkLabel = it.url ? 'Open your link \u2197' : 'View on kuiu.com \u2197';
+  var link = linkURL
+    ? '<a class="gd-link" href="'+esc(linkURL)+'" target="_blank" rel="noopener">'+linkLabel+'</a>'
+    : '<div class="gd-nonkuiu">Not a KUIU item \u2014 add your own link in edit mode.</div>';
+  // EDIT MODE: show an editable form (temp range, color/pattern, custom link)
+  if(editMode){
+    var ov=overridesMem[it.name]||{};
+    var curMin=(it.tmin!=null?Math.round(it.tmin):'');
+    var curMax=(it.tmax!=null?Math.round(it.tmax):'');
+    var curPat=(it.pattern||'');
+    var curUrl=(typeof it.url==='string'?it.url:'');
+    var edited = it.edited ? '<span class="gd-editedtag">EDITED</span>' : '';
+    var form=''
+      +'<div class="gd-edit" data-edname="'+esc(it.name)+'">'
+      +'<div class="gd-editrow"><label>Temp min \u00B0F<input type="number" data-ed="tmin" value="'+curMin+'"></label>'
+      +'<label>Temp max \u00B0F<input type="number" data-ed="tmax" value="'+curMax+'"></label></div>'
+      +'<label class="gd-editfull">Color / pattern<input type="text" list="fk-patlist" data-ed="pattern" value="'+esc(curPat)+'" placeholder="Valo, Verde, Vias, Blaze, Solid\u2026"></label>'
+      +'<label class="gd-editfull">Your link (optional \u2014 overrides the kuiu.com search)<input type="url" data-ed="url" value="'+esc(curUrl)+'" placeholder="https://www.kuiu.com/products/\u2026"></label>'
+      +'<div class="gd-editbtns"><button class="btn sm" data-save="'+esc(it.name)+'">Save</button>'
+      +'<button class="btn ghost sm" data-reset="'+esc(it.name)+'">Reset to default</button>'+edited+'</div>'
+      +'</div>';
+    return '<div class="gear-detail">'+rows+note+form+'</div>';
+  }
+  return '<div class="gear-detail">'+rows+note+link+'</div>';
 }
 function packableNames(){ return allGear().map(function(g){return g.name;}); }
 function togglePacked(name){
@@ -1283,8 +1403,9 @@ function customRemove(name){
 function deleteGear(name, builtin){
   if(builtin){ if(removedMem.indexOf(name)<0){ removedMem.push(name); lsSet('fk_removed',removedMem); } }
   else { customMem=customMem.filter(x=>x.name!==name); lsSet('fk_custom',customMem); }
-  // also unpack it from any trip set
+  // also unpack it from any trip set + drop any per-item edits
   var i=tripSet.indexOf(name); if(i>=0){ tripSet.splice(i,1); lsSet('fk_trip_set',tripSet); }
+  if(overridesMem[name]){ delete overridesMem[name]; lsSet('fk_overrides', overridesMem); }
   renderCloset(); if(S.windows||S.manual.on) render();
 }
 function setEditMode(on){
@@ -1307,7 +1428,7 @@ function clearHome(){ homeMem=null; try{localStorage.removeItem('fk_home');}catc
 /* gear advisor */
 function ownedGearText(){
   var lines=[];
-  var all=OWNED.map(function(x){return Object.assign({},x,{custom:false});}).concat(customItems().map(function(x){return Object.assign({},x,{custom:true});}));
+  var all=OWNED.filter(function(x){return !isRemoved(x.name);}).map(function(x){return withOverrides(Object.assign({},x,{custom:false}));}).concat(customItems().map(function(x){return withOverrides(Object.assign({},x,{custom:true}));}));
   CAT_GROUPS.forEach(function(g){
     var items=all.filter(function(x){return x.cat===g[0];});
     if(!items.length) return;
@@ -1316,10 +1437,13 @@ function ownedGearText(){
       var rng=(it.tmin!=null&&it.tmax!=null)?(' '+Math.round(it.tmin)+'-'+Math.round(it.tmax)+'F'):'';
       var tags=[it.q?'quiet':null,it.w?'windproof':null,it.wp?'waterproof':null].filter(Boolean).join('/');
       var disc=(it.disc&&it.disc.length)?it.disc.join('/'):'all';
-      lines.push('  - '+it.name+rng+' ['+disc+']'+(tags?' ('+tags+')':''));
+      var pat = isCamoRelevant(it) ? (it.pattern||'') : '';   // base layers/socks: pattern irrelevant
+      var patStr = pat ? (' {'+pat+'}') : '';
+      lines.push('  - '+it.name+rng+' ['+disc+']'+(tags?' ('+tags+')':'')+patStr);
     });
   });
-  var logic='\nHOW THE LOADOUT LOGIC WORKS: Deterministic engine (no AI). Three disciplines. Deer has light/medium/high activity: light reads true feels-like, medium reads feels-7 (longer damp sit), high reads feels+12 and carries insulation to pull on at stops. Slots: Base Top, Base Btm, Mid, Insul, Shell, Legs, Head, Hands, Feet, Vest. Quiet (brushed/fleece/softshell) pieces are preferred for close-range whitetail. Outer-fit down (Super Down) is never layered under a shell (it would compress); on cold static sits the insulation jacket IS the outer and no softshell goes over it. Waterproof shells lead in the wet; wind-resistant softshells lead dry. Waders are the waterfowl waterproofing; everything layers under them.';
+  var pattern='\nCAMO PATTERN: The user owns KUIU Valo camo for all camo-relevant outerwear (marked {Valo} above), plus two Blaze-orange pieces for gun-season visibility (marked {Blaze}). Base layers and socks are worn underneath, so camo pattern does not apply to them (no pattern shown). Treat the user as fully outfitted in Valo - do not assume they lack camo; if a piece is camo-relevant and owned, it is Valo.';
+  var logic=pattern+'\nHOW THE LOADOUT LOGIC WORKS: Deterministic engine (no AI). Three disciplines. Deer has light/medium/high activity: light reads true feels-like, medium reads feels-7 (longer damp sit), high reads feels+12 and carries insulation to pull on at stops. Slots: Base Top, Base Btm, Mid, Insul, Shell, Legs, Head, Hands, Feet, Vest. Quiet (brushed/fleece/softshell) pieces are preferred for close-range whitetail. Outer-fit down (Super Down) is never layered under a shell (it would compress); on cold static sits the insulation jacket IS the outer and no softshell goes over it. Waterproof shells lead in the wet; wind-resistant softshells lead dry. Waders are the waterfowl waterproofing; everything layers under them.';
   return lines.join('\n')+logic;
 }
 function advSetAnswer(html,kind){ var el=document.getElementById('advAnswer'); el.className='adv-answer '+(kind||''); el.classList.remove('hidden'); el.innerHTML=html; }
