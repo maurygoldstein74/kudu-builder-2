@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Field Kit v1.72</title>
+<title>Field Kit v1.73</title>
 <meta name="theme-color" content="#14161A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -375,7 +375,7 @@
   </section>
   <section class="card setup-card">
     <h3>About</h3>
-    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.72</span></div>
+    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.73</span></div>
     <div class="setrow"><span class="k">Weather</span><span class="mono">Open-Meteo &middot; no key</span></div>
     <div class="setrow"><span class="k">Place name</span><span class="mono">BigDataCloud</span></div>
     <div class="setrow"><span class="k">Gear specs</span><span class="mono">Claude &middot; your key</span></div>
@@ -1196,17 +1196,32 @@ function advErrHelp(err){
 // in the repo but is OFF until the Netlify Pro 26s timeout is confirmed active; flip ADV_ENDPOINT to
 // '/api/advisor-search' then. Do NOT auto-try search first: a search timeout is not a 404, so it would
 // not fall back and would just fail.
-var ADV_ENDPOINT='/api/advisor';
+// The KUIU-search advisor (/api/advisor-search) runs a live kuiu.com lookup, which can exceed the
+// 10s function limit unless the Netlify Pro 26s timeout is active. We TRY it first, but if it stalls
+// (no answer text before the watchdog) or fails before any text streams, we fall back to the plain
+// streaming advisor (/api/advisor) so the user always gets a good answer either way. Once you confirm
+// the 26s timeout is active, search becomes fully reliable with no visible fallback.
+var ADV_SEARCH='/api/advisor-search', ADV_PLAIN='/api/advisor';
+var ADV_USE_SEARCH=true;              // set false to skip search entirely and use the plain advisor
 async function askAdvisor(q){
-  advSetAnswer('<span class="spinner sm"></span> Claude is thinking\u2026','busy');
-  var ok=await streamAdvisor(ADV_ENDPOINT, q);
-  if(ok==='missing' && ADV_ENDPOINT!=='/api/advisor'){ await streamAdvisor('/api/advisor', q); }
+  advSetAnswer('<span class="spinner sm"></span> Looking up KUIU specs\u2026','busy');
+  if(ADV_USE_SEARCH){
+    var res=await streamAdvisor(ADV_SEARCH, q, true);   // watchdog on: bail to fallback if it stalls
+    if(res===true) return;                              // search produced an answer
+    // 'missing' (404/405, search fn not deployed) or 'stalled'/'failed' before text -> fall back
+    advSetAnswer('<span class="spinner sm"></span> Claude is thinking\u2026','busy');
+  }
+  await streamAdvisor(ADV_PLAIN, q, false);
 }
-async function streamAdvisor(endpoint, q){
+async function streamAdvisor(endpoint, q, watchdog){
+  var gotText=false;                                   // has any answer text arrived yet?
+  var ctl=(typeof AbortController!=='undefined')?new AbortController():null;
+  var wd=null;
+  if(watchdog){ wd=setTimeout(function(){ if(!gotText && ctl) try{ ctl.abort(); }catch(_){} }, 9500); } // beat the 10s fn limit
   try{
-    var r=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({ask:q, owned:ownedGearText()})});
-    if(r.status===404||r.status===405){ return 'missing'; }
-    if(!r.ok){ var e={}; try{ e=await r.json(); }catch(_){} throw new Error(e.error||('HTTP '+r.status)); }
+    var r=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({ask:q, owned:ownedGearText()}), signal: ctl?ctl.signal:undefined});
+    if(r.status===404||r.status===405){ if(wd) clearTimeout(wd); return 'missing'; }
+    if(!r.ok){ if(wd) clearTimeout(wd); var e={}; try{ e=await r.json(); }catch(_){} if(!gotText) return 'failed'; throw new Error(e.error||('HTTP '+r.status)); }
     if(!r.body || !r.body.getReader){ var d=await r.json().catch(function(){return{};}); advSetAnswer(esc(d.answer||d.error||'No answer came back.'), d.answer?'':'error'); return true; }
     var reader=r.body.getReader(), dec=new TextDecoder(), raw='', text='', status='';
     var el=document.getElementById('advAnswer'); el.className='adv-answer'; el.classList.remove('hidden'); el.textContent='';
@@ -1222,13 +1237,19 @@ async function streamAdvisor(endpoint, q){
         var ctrl=parts[i].slice(0,nl); text+=parts[i].slice(nl+1);
         try{ var o=JSON.parse(ctrl); if(o.status==='thinking') status='Claude is thinking\u2026'; else if(o.status==='searching') status='Looking up '+(o.query?('\u201C'+o.query+'\u201D'):'specs')+'\u2026'; else if(o.status==='reading') status='Reading results\u2026'; else if(o.status==='empty') status=''; }catch(_){}
       }
+      if(text.trim() && !gotText){ gotText=true; if(wd){ clearTimeout(wd); wd=null; } }
       var head = (!text.trim() && status) ? '<span class="spinner sm"></span> '+esc(status)+'\n\n' : '';
       el.innerHTML = head + esc(text);
     }
-    if(!text.trim()) advSetAnswer('No answer came back \u2014 try naming the exact product.','error');
-    else el.innerHTML=esc(text);
+    if(wd){ clearTimeout(wd); wd=null; }
+    if(!text.trim()) return gotText?true:'stalled';    // nothing came back -> let caller fall back
+    el.innerHTML=esc(text);
     return true;
-  }catch(err){ advSetAnswer(advErrHelp(err),'error'); return true; }
+  }catch(err){
+    if(wd){ clearTimeout(wd); wd=null; }
+    if((err&&err.name==='AbortError') || !gotText) return 'stalled';  // stalled before text -> fall back
+    advSetAnswer(advErrHelp(err),'error'); return true;
+  }
 }
 var ADV_EX=['Would the Kenai Ultra jacket fill a gap?','Do I have overlap I could sell?','Why skip a shell below 38 on a cold sit?'];
 function paintAdvEx(){

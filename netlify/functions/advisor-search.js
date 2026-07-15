@@ -17,7 +17,7 @@ function buildSystem(owned) {
     "",
     "GROUNDING RULES:",
     "- The user's owned gear is listed at the end. Reason from THAT, not a generic wardrobe.",
-    "- Default to KUIU. When the user names a product, assume KUIU unless they say otherwise. Use web search to pull real specs from kuiu.com product/collection pages (fabric, weight, fill, temp intent, fit: base/mid/outer), then confirm real-world temperature behavior on hunting forums (rokslide.com, archerytalk.com) and Reddit, since KUIU's marketing understates ranges. Search sparingly - one or two focused searches, not many.",
+    "- Default to KUIU. When the user names a product, assume KUIU unless they say otherwise. Web search is restricted to kuiu.com, so search there for real product specs (fabric, weight, fill, temp intent, fit: base/mid/outer) from the product and collection pages. Search sparingly - one or two focused searches, not many. If a search returns nothing useful, answer from the specs you can confirm plus the user's owned kit rather than guessing numbers.",
     "- Verify a spec before judging it; do not invent numbers.",
     "",
     "HOW TO ANSWER:",
@@ -56,7 +56,7 @@ export default async (req) => {
         thinking: { type: "disabled" },
         system: buildSystem(owned),
         messages: [{ role: "user", content: question }],
-        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }]
+        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3, allowed_domains: ["kuiu.com"] }]
       })
     });
   } catch (e) {
