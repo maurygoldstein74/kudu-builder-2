@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Field Kit v1.81</title>
+<title>Field Kit v1.83</title>
 <meta name="theme-color" content="#14161A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -406,8 +406,36 @@
     <div class="setrow"><span class="k">Edit mode</span><button class="btn ghost sm" id="editToggle" role="switch" aria-pressed="false">Edit mode: <b id="editCap">off</b></button></div>
   </section>
   <section class="card setup-card">
+    <h3>Backup &amp; restore</h3>
+    <p>Your edits (custom links, temp tweaks, added &amp; removed gear) live on this phone. They survive app updates, but not clearing your browser or switching phones. Back them up here &mdash; copy or share the code and keep it somewhere safe (Notes, email to yourself). Paste it back anytime to restore.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+      <button class="btn sm" id="bkBackup">Back up</button>
+      <button class="btn ghost sm" id="bkShare" hidden>Share\u2026</button>
+      <button class="btn ghost sm" id="bkRestore">Restore</button>
+    </div>
+    <textarea id="bkBox" rows="3" placeholder="Your backup code appears here when you tap Back up \u2014 or paste a saved code here and tap Restore." style="width:100%;font-family:'JetBrains Mono';font-size:.72rem"></textarea>
+    <div class="add-status hidden" id="bkStatus"></div>
+    <div class="setrow" style="margin-top:10px"><span class="k">Confirmed links</span><button class="btn ghost sm" id="bkLinks">Copy links for code</button></div>
+    <p style="font-size:.72rem;color:var(--faint);margin-top:6px">Curated product links you want to keep permanently? Tap <b>Copy links for code</b> and send them over &mdash; they get baked into the app so they ship on every device, no restore needed.</p>
+  </section>
+  <section class="card setup-card">
+    <h3>Backup &amp; restore</h3>
+    <p>Your edits (custom links, temp tweaks, added gear, deletions) live in this browser. They survive normal deploys, but <b>not</b> clearing browser data, a new device, or a domain change. Export a backup file to be safe.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn sm" id="exportBtn">Export backup</button>
+      <button class="btn ghost sm" id="importBtn">Import backup</button>
+      <input type="file" id="importFile" accept="application/json,.json" hidden>
+    </div>
+    <div class="add-example" id="backupStatus" style="margin-top:8px">Backup includes links, temp/pattern edits, added gear, deletions, trip &amp; home.</div>
+    <div style="margin-top:14px;border-top:1px solid var(--faint);padding-top:12px">
+      <p style="margin:0 0 8px">Bake your links into the app code (permanent, ships with every deploy). Copy this and paste it over the <code>KUIU_URLS</code> block in index.html.</p>
+      <button class="btn ghost sm" id="linksBtn">Generate links code</button>
+      <textarea id="linksOut" rows="4" hidden style="width:100%;margin-top:8px;font-family:'JetBrains Mono';font-size:.72rem"></textarea>
+    </div>
+  </section>
+  <section class="card setup-card">
     <h3>About</h3>
-    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.81</span></div>
+    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.83</span></div>
     <div class="setrow"><span class="k">Weather</span><span class="mono">Open-Meteo &middot; no key</span></div>
     <div class="setrow"><span class="k">Place name</span><span class="mono">BigDataCloud</span></div>
     <div class="setrow"><span class="k">Gear specs</span><span class="mono">Claude &middot; your key</span></div>
@@ -1254,8 +1282,57 @@ function resetGearEdit(name){
   delete overridesMem[name]; lsSet('fk_overrides', overridesMem);
   renderCloset(); if(S.windows||S.manual.on) render();
 }
+var BACKUP_KEYS=['fk_overrides','fk_custom','fk_removed','fk_trip_on','fk_trip_set','fk_home'];
+function appVersion(){ var v=document.getElementById('verText'); return v?v.textContent.trim().replace(/^v/,''):'0'; }
+function exportBackup(){
+  var data={};
+  BACKUP_KEYS.forEach(function(k){ try{ var raw=localStorage.getItem(k); if(raw!=null) data[k]=JSON.parse(raw); }catch(e){} });
+  var payload={ app:'KUIU Field Kit', version:appVersion(), exported:new Date().toISOString(), data:data };
+  var blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
+  var url=URL.createObjectURL(blob), a=document.createElement('a');
+  a.href=url; a.download='FieldKit-backup-v'+appVersion()+'.json';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a); setTimeout(function(){URL.revokeObjectURL(url);},1000);
+  var n=Object.keys((data.fk_overrides||{})).length, c=(data.fk_custom||[]).length, r=(data.fk_removed||[]).length;
+  setBackupStatus('Exported \u2014 '+n+' edits, '+c+' added, '+r+' removed. Keep this file safe.','ok');
+}
+function setBackupStatus(html,kind){ var el=document.getElementById('backupStatus'); if(!el)return; el.innerHTML=html; el.style.color=(kind==='ok')?'var(--mode)':(kind==='error'?'#e88':'var(--faint)'); }
+function importBackup(file){
+  var rd=new FileReader();
+  rd.onload=function(){
+    var parsed; try{ parsed=JSON.parse(rd.result); }catch(e){ setBackupStatus('That file is not valid JSON.','error'); return; }
+    var data=parsed&&parsed.data&&typeof parsed.data==='object'?parsed.data:null;
+    if(!data || !BACKUP_KEYS.some(function(k){return k in data;})){ setBackupStatus('That does not look like a Field Kit backup.','error'); return; }
+    if(!confirm('Restore this backup? It replaces your current edits, added gear and deletions in this browser.')) return;
+    BACKUP_KEYS.forEach(function(k){ try{ if(k in data) localStorage.setItem(k, JSON.stringify(data[k])); }catch(e){} });
+    setBackupStatus('Restored. Reloading\u2026','ok');
+    setTimeout(function(){ location.reload(); }, 500);
+  };
+  rd.onerror=function(){ setBackupStatus('Could not read that file.','error'); };
+  rd.readAsText(file);
+}
+function generateLinksCode(){
+  // merge confirmed defaults with the user's saved link overrides -> paste-ready KUIU_URLS block
+  var merged=Object.assign({}, KUIU_URLS);
+  Object.keys(overridesMem).forEach(function(name){ var u=overridesMem[name]&&overridesMem[name].url; if(typeof u==='string'&&u.trim()) merged[name]=u.trim(); });
+  var lines=Object.keys(merged).sort().map(function(k){ return "  '"+k.replace(/'/g,"\\'")+"':'"+String(merged[k]).replace(/'/g,"\\'")+"'"; });
+  var code='var KUIU_URLS = {\n'+lines.join(',\n')+'\n};';
+  var ta=document.getElementById('linksOut'); ta.value=code; ta.hidden=false; ta.focus(); ta.select();
+  var n=Object.keys(merged).length;
+  var done=function(){ setBackupStatus('Links code copied \u2014 paste it over the KUIU_URLS block in index.html ('+n+' links).','ok'); };
+  var manual=function(){ setBackupStatus('Select the text below and copy it, then paste over the KUIU_URLS block in index.html ('+n+' links).',''); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(code).then(done, function(){ try{ document.execCommand('copy')?done():manual(); }catch(e){ manual(); } });
+  } else { try{ document.execCommand('copy')?done():manual(); }catch(e){ manual(); } }
+}
 function isKuiuItem(it){ return !/danner/i.test(it.name); }   // Danner is a 3rd-party brand, not KUIU
 function isCamoRelevant(it){ return !(it.cat==='base' || /sock/i.test(it.name) || it.pattern==='Universal'); } // base layers & socks are worn underneath - pattern is irrelevant
+// Verified KUIU product-page URLs (confirmed from live KUIU result pages). Valo colorway to match his kit.
+// Anything not here falls back to a kuiu.com search. Slugs can rotate over time; the per-item link
+// override lets you correct any that drift.
+var KUIU_URLS = {
+  'Super Down PRO jacket':'https://www.kuiu.com/products/super-down-pro-hooded-jacket-valo-camouflage'
+};
+function kuiuProductURL(name){ return KUIU_URLS[name] || null; }
 function kuiuSearchURL(name){
   // robust: KUIU product slugs rotate and 404, so link to a storefront search that always resolves.
   // strip our app-only pattern/color suffixes (e.g. "Pro Hat - Valo" -> "Pro Hat") for a cleaner query.
@@ -1278,8 +1355,11 @@ function gearDetailHTML(it){
   if(tags) rows+='<div class="gd-row"><span class="gd-k">Traits</span><span>'+esc(tags)+'</span></div>';
   var baseNote = isCamoRelevant(it) ? '' : '<div class="gd-note">Worn underneath \u2014 camo pattern doesn\u2019t apply.</div>';
   var note=(it.note?'<div class="gd-note">'+esc(it.note)+'</div>':'')+baseNote;
-  var linkURL = (typeof it.url==='string' && it.url.trim()) ? it.url.trim() : (isKuiuItem(it) ? kuiuSearchURL(it.name) : null);
-  var linkLabel = it.url ? 'Open your link \u2197' : 'View on kuiu.com \u2197';
+  var confirmed = isKuiuItem(it) ? kuiuProductURL(it.name) : null;
+  var linkURL = (typeof it.url==='string' && it.url.trim()) ? it.url.trim()
+              : (confirmed ? confirmed
+              : (isKuiuItem(it) ? kuiuSearchURL(it.name) : null));
+  var linkLabel = it.url ? 'Open your link \u2197' : (confirmed ? 'View on kuiu.com \u2197' : 'Search on kuiu.com \u2197');
   var link = linkURL
     ? '<a class="gd-link" href="'+esc(linkURL)+'" target="_blank" rel="noopener">'+linkLabel+'</a>'
     : '<div class="gd-nonkuiu">Not a KUIU item \u2014 add your own link in edit mode.</div>';
@@ -1416,6 +1496,64 @@ function setEditMode(on){
 }
 
 /* home spot + api test */
+/* --- backup & restore (mobile-first: clipboard + share + paste) --- */
+function buildBackup(){
+  return JSON.stringify({
+    fieldkit_backup: 1,
+    saved: new Date().toISOString(),
+    app: (document.getElementById('verText')?document.getElementById('verText').textContent:''),
+    data: {
+      fk_overrides: overridesMem,
+      fk_custom: customMem,
+      fk_removed: removedMem,
+      fk_trip_on: tripOn,
+      fk_trip_set: tripSet,
+      fk_home: homeMem
+    }
+  });
+}
+function bkSay(msg, kind){ var el=document.getElementById('bkStatus'); if(!el) return; el.className='add-status '+(kind||''); el.classList.remove('hidden'); el.innerHTML=msg; }
+function doBackup(){
+  var txt=buildBackup();
+  var box=document.getElementById('bkBox'); if(box) box.value=txt;
+  var copied=false;
+  try{ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(txt); copied=true; } }catch(e){}
+  if(!copied && box){ try{ box.focus(); box.select(); document.execCommand('copy'); copied=true; }catch(e){} }
+  bkSay(copied?'Backup copied. Paste it into Notes or email it to yourself to keep it safe.':'Backup ready below \u2014 long-press to select and copy it.', 'ok');
+}
+function doShare(){
+  var txt=buildBackup();
+  if(navigator.share){ navigator.share({title:'Field Kit backup', text:txt}).catch(function(){}); }
+}
+function doRestore(){
+  var box=document.getElementById('bkBox'); var raw=box?box.value.trim():'';
+  if(!raw){ bkSay('Paste your backup code into the box first, then tap Restore.','error'); return; }
+  var obj; try{ obj=JSON.parse(raw); }catch(e){ bkSay('That does not look like a valid backup code.','error'); return; }
+  if(!obj || obj.fieldkit_backup!==1 || !obj.data){ bkSay('That is not a Field Kit backup.','error'); return; }
+  var d=obj.data;
+  try{
+    if(d.fk_overrides && typeof d.fk_overrides==='object') lsSet('fk_overrides', d.fk_overrides);
+    if(Array.isArray(d.fk_custom)) lsSet('fk_custom', d.fk_custom);
+    if(Array.isArray(d.fk_removed)) lsSet('fk_removed', d.fk_removed);
+    if(typeof d.fk_trip_on==='boolean') lsSet('fk_trip_on', d.fk_trip_on);
+    if(Array.isArray(d.fk_trip_set)) lsSet('fk_trip_set', d.fk_trip_set);
+    if(d.fk_home===null || (d.fk_home&&typeof d.fk_home==='object')) lsSet('fk_home', d.fk_home);
+  }catch(e){ bkSay('Restore failed while saving. Nothing changed.','error'); return; }
+  bkSay('Restored. Reloading\u2026','ok');
+  setTimeout(function(){ location.reload(); }, 600);
+}
+function copyLinksCode(){
+  var merged=Object.assign({}, (typeof KUIU_URLS!=='undefined'?KUIU_URLS:{}));
+  Object.keys(overridesMem).forEach(function(name){ var u=overridesMem[name]&&overridesMem[name].url; if(u) merged[name]=u; });
+  var keys=Object.keys(merged);
+  if(!keys.length){ bkSay('No product links to copy yet \u2014 add links to pieces in edit mode first.','error'); return; }
+  var body=keys.map(function(k){ return "  '"+k.replace(/'/g,"\\'")+"':'"+String(merged[k]).replace(/'/g,"\\'")+"'"; }).join(',\n');
+  var code='var KUIU_URLS = {\n'+body+'\n};';
+  var box=document.getElementById('bkBox'); if(box) box.value=code;
+  var copied=false; try{ if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(code); copied=true; } }catch(e){}
+  if(!copied && box){ try{ box.focus(); box.select(); document.execCommand('copy'); copied=true; }catch(e){} }
+  bkSay((copied?'Copied ':'Below is ')+keys.length+' link'+(keys.length>1?'s':'')+' as code. Send it over to bake them into the app permanently.','ok');
+}
 function paintHome(){
   document.getElementById('homeName').textContent = homeMem ? homeMem.name : 'none';
 }
@@ -1523,6 +1661,12 @@ document.getElementById('tripToggle').onclick=function(){ setTrip(!tripOn); };
 document.getElementById('tripAll').onclick=function(){ tripSet=packableNames().slice(); lsSet('fk_trip_set',tripSet); renderCloset(); if(S.windows||S.manual.on) render(); };
 document.getElementById('tripNone').onclick=function(){ tripSet=[]; lsSet('fk_trip_set',tripSet); renderCloset(); if(S.windows||S.manual.on) render(); };
 document.getElementById('tripActive').onclick=function(){ document.querySelectorAll('[data-view]').forEach(function(t){ if(t.dataset.view==='closet') t.click(); }); };
+(function(){
+  var eb=document.getElementById('exportBtn'); if(eb) eb.onclick=exportBackup;
+  var ib=document.getElementById('importBtn'), ifl=document.getElementById('importFile');
+  if(ib&&ifl){ ib.onclick=function(){ ifl.click(); }; ifl.onchange=function(){ if(ifl.files&&ifl.files[0]) importBackup(ifl.files[0]); ifl.value=''; }; }
+  var lb=document.getElementById('linksBtn'); if(lb) lb.onclick=generateLinksCode;
+})();
 document.getElementById('advGo').onclick=function(){ var v=document.getElementById('advInput').value.trim(); if(v) askAdvisor(v); };
 document.getElementById('advClear').onclick=function(){ document.getElementById('advInput').value=''; var el=document.getElementById('advAnswer'); el.className='adv-answer hidden'; el.innerHTML=''; };
 document.getElementById('advInput').addEventListener('keydown',function(e){ if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){ var v=e.target.value.trim(); if(v) askAdvisor(v); } });
@@ -1549,6 +1693,12 @@ document.getElementById('gearGo').onclick=()=>{ const v=document.getElementById(
 document.getElementById('gearInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const v=e.target.value.trim(); if(v) researchGear(v); } });
 document.getElementById('pinHome').onclick=pinHome;
 document.getElementById('clearHome').onclick=clearHome;
+(function(){
+  var bk=document.getElementById('bkBackup'); if(bk) bk.onclick=doBackup;
+  var rs=document.getElementById('bkRestore'); if(rs) rs.onclick=doRestore;
+  var lk=document.getElementById('bkLinks'); if(lk) lk.onclick=copyLinksCode;
+  var sh=document.getElementById('bkShare'); if(sh){ if(navigator.share){ sh.hidden=false; sh.onclick=doShare; } }
+})();
 document.getElementById('windowSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.win=b.dataset.win; [].forEach.call(document.querySelectorAll('#windowSeg button'),x=>x.setAttribute('aria-pressed', x===b)); render(); });
 document.getElementById('modeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.mode=b.dataset.mode; [].forEach.call(document.querySelectorAll('#modeSeg button'),x=>x.setAttribute('aria-pressed', x===b)); render(); });
 document.getElementById('actSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.act=b.dataset.act; [].forEach.call(document.querySelectorAll('#actSeg button'),x=>x.setAttribute('aria-pressed', x===b)); render(); });
