@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Field Kit v2.00</title>
+<title>Field Kit v2.02</title>
 <meta name="theme-color" content="#14161A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -360,7 +360,7 @@
     </section>
     <div class="notes"><div class="nt">Field notes</div><ul id="notes"></ul></div>
   </div>
-  <div class="vermark">FIELD KIT v2.00</div>
+  <div class="vermark">FIELD KIT v2.02</div>
 </section>
 
 <section class="view" id="view-closet">
@@ -392,7 +392,7 @@
   </section>
   <div class="edit-banner" id="editBanner" hidden>Edit mode is ON &mdash; tap Delete on a piece, then confirm. Turn it off in Setup when done.</div>
   <div id="catalog"></div>
-  <div class="vermark">FIELD KIT v2.00</div>
+  <div class="vermark">FIELD KIT v2.02</div>
 </section>
 
 <section class="view" id="view-setup">
@@ -431,14 +431,14 @@
   </section>
   <section class="card setup-card">
     <h3>About</h3>
-    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v2.00</span></div>
+    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v2.02</span></div>
     <div class="setrow"><span class="k">Loadout engine</span><span class="mono">Warmth budget &middot; engine.js</span></div>
     <div class="setrow"><span class="k">Weather</span><span class="mono">Open-Meteo &middot; no key</span></div>
     <div class="setrow"><span class="k">Place name</span><span class="mono">BigDataCloud</span></div>
     <div class="setrow"><span class="k">Gear specs</span><span class="mono">Claude &middot; your key</span></div>
     <p style="margin-top:12px;font-size:.76rem;color:var(--faint)">Recommendations are built from your own KUIU closet. Not affiliated with KUIU.</p>
   </section>
-  <div class="vermark">FIELD KIT v2.00</div>
+  <div class="vermark">FIELD KIT v2.02</div>
 </section>
 
 <nav class="tabbar" role="tablist" aria-label="Sections">
@@ -465,11 +465,11 @@ try{ document.getElementById("favicon").href=ICON;
   document.getElementById("manifestLink").href=URL.createObjectURL(new Blob([JSON.stringify(__mani)],{type:"application/manifest+json"}));
 }catch(e){}
 /* ============================================================================
-   KUIU Field Kit v2.00 — app shell.
+   KUIU Field Kit v2.02 — app shell.
    All layering decisions live in engine.js (window.FK). This file only gathers
    weather + closet state, calls FK.recommend(), and paints the result.
    ============================================================================ */
-const APP_VERSION='2.00';
+const APP_VERSION='2.02';
 const S = { lat:null, lon:null, elev:null, windows:null, win:'dawn', mode:'deer', act:'light', wfEnv:'marsh', locName:'', view:'loadout',
             manual:{on:false, temp:45, wind:5, wet:false, sky:1} };
 const HOUR = 3600*1000;
@@ -1151,6 +1151,10 @@ function normalizeItem(raw, name){
   let pos=Array.isArray(raw.pos)?raw.pos.map(function(p){return String(p).toLowerCase();}):[];
   const fitRaw=String(raw.fit||'').toLowerCase();
   let fit=/skin|base|next/.test(fitRaw)?'skin':(/mid/.test(fitRaw)?'mid':(/outer/.test(fitRaw)?'outer':''));
+  // a relaxed / loose woven shirt (snap shirt, button-down) is still a base, but the garment matrix treats it as "relaxed"
+  // (snug under an athletic zip-T); carried through from the research answer or the name
+  const relaxed = raw.relaxed===true || /relaxed|loose/.test(fitRaw) || ((isBaseCat||cat==='shirt') && /snap|button|sporter/.test(String(raw.name||name||'').toLowerCase()));
+  if(/relaxed|loose/.test(fitRaw)) fit='skin';
   // what the engine's clo estimate needs: an insulated piece with no stated weight is treated as ~100 g synthetic (or ~4 oz down)
   let insulation_gsm=clampNum(raw.insulation_gsm,0,1000,0)||undefined;
   let fill_oz=clampNum(raw.fill_oz,0,40,0)||undefined;
@@ -1186,7 +1190,7 @@ function normalizeItem(raw, name){
   if(!disc.length) disc=['deer','upland','waterfowl'];
   var nm=(raw.name||name||'').toString().slice(0,60) || name;
   var it={
-    id:'custom_'+slugify(nm), name:nm, cat:cat, slot:slot, pos:pos, fit:fit, ins:ins,
+    id:'custom_'+slugify(nm), name:nm, cat:cat, slot:slot, pos:pos, fit:fit, relaxed: !!(relaxed && slot==='torso'), ins:ins,
     wind:wind, wp: membrane?2:((raw.dwr||raw.water_resistant||raw.waterResistant||/soft|shell|jacket|pant/.test(cat))?1:0),
     quiet: clampNum(raw.quiet_1_10!=null?raw.quiet_1_10:(raw.quiet===true?8:(raw.quiet===false?4:6)),1,10,6),
     active: raw.active!==undefined?!!raw.active:(fit==='skin'||(ins!=='down'&&!(ins==='syn'&&slot==='torso'&&pos.indexOf('base')<0))),
@@ -1312,7 +1316,7 @@ function ownedGearText(){
   var all=currentGear();
   var M=(engineReady()&&FK.TUNE&&FK.TUNE.met)?FK.TUNE.met:{};
   var met=function(k,d){ var v=M[k]; return (v!=null&&isFinite(v))?(+v).toFixed(1):d; };
-  var logic='HOW THE LOADOUT LOGIC WORKS (v'+APP_VERSION+', deterministic, no AI): a warmth budget. Required warmth = air temperature + wind at the body (forecast wind scaled for timber vs open) + activity of the hunt phase (stand ~'+met('deer_sit','1.2')+' MET, walk-in ~'+met('deer_walk','2.5')+', still-hunt ~'+met('deer_still','2.0')+', upland walking ~'+met('upland','3.0')+', blind ~'+met('wf_sit','1.3')+') + sun + sit length (a longer sit raises the warmth target). Supplied warmth = ISO-style whole-body insulation of each owned piece, summed: wind strips warmth unless the OUTERMOST layer is windproof; a shell compresses a puffy; rain with no membrane on top collapses down. The quietest, lightest valid stack that meets the budget wins; picks stay coherent as temperature falls (colder only adds or upgrades, never drops). KUIU fit rules: one base, optional fleece mid, insulation, outer; outer-fit insulated jackets (Proximity, Super Down PRO, Haven) ARE the outer unless the HD Flex (sized over them) goes on top; the Haven never has anything over it; the Gale Force is the insulated waterproof outer for wet sits or dry sits at 32° and below; a membrane rain shell is mandatory in rain below 75°. Phases: walk-in vs sit kit, moving kit vs stop layer. If the closet cannot reach the budget it says so (warmest you own, about N hours) and never suggests a purchase.';
+  var logic='HOW THE LOADOUT LOGIC WORKS (v'+APP_VERSION+', deterministic, no AI): a warmth budget. Required warmth = air temperature + wind at the body (forecast wind scaled for timber vs open) + activity of the hunt phase (stand ~'+met('deer_sit','1.2')+' MET, walk-in ~'+met('deer_walk','2.5')+', still-hunt ~'+met('deer_still','2.0')+', upland walking ~'+met('upland','3.0')+', blind ~'+met('wf_sit','1.3')+') + sun + sit length (a longer sit raises the warmth target). Supplied warmth = ISO-style whole-body insulation of each owned piece, summed: wind strips warmth unless the OUTERMOST layer is windproof; a shell compresses a puffy; rain with no membrane on top collapses down. The quietest, lightest valid stack that meets the budget wins; picks stay coherent as temperature falls (colder only adds or upgrades, never drops). KUIU garment rules (a physical matrix, checked for every stack): one base; a fleece mid over the base only; outer-fit insulated jackets (Proximity, Super Down PRO, Haven) are the outer - never over a soft shell, never under a same-size rain shell (the HD Flex is sized to go over them, the Kutana only over the Super Down PRO one size up); the Haven goes over a base and a fleece only; the Gale Force pant goes over a base bottom only, never over another pant; the rain pant goes over the Attack/Tiburon freely and the Encounter snugly; boots never with the waders. The Gale Force jacket is the insulated waterproof outer for wet sits or dry sits at 32° and below; a membrane rain shell is mandatory in rain below 75°. Phases: walk-in (base + fleece worn in, insulation carried; in rain everything on from the truck, no layer changes) vs sit kit; moving kit vs stop layer (the stop piece replaces a soft shell or goes over fleece; no layer changes at wet stops). Sit hours are absolute (same kit + weather = same hours) and the sit target is whatever reaches the planned hours. If the closet cannot reach the budget it says so (warmest you own, about N hours) and never suggests a purchase.';
   var lines=['USER’S OWNED GEAR (name, used-from band, worn as, best for, traits, camo):'];
   CAT_GROUPS.forEach(function(g){
     var items=all.filter(function(x){return x.cat===g[0];});

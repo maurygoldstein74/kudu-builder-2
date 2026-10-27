@@ -1,4 +1,4 @@
-// KUIU Field Kit v2.00 — gear-spec researcher (server-side).
+// KUIU Field Kit v2.02 — gear-spec researcher (server-side).
 // Reads ANTHROPIC_API_KEY from Netlify env vars so the key is NEVER in the client.
 // Optional: CLAUDE_MODEL (model id), FK_ALLOWED_ORIGIN (origin gate, see lib/fk-common.js).
 // v2.00: the old in-function advisor loop is gone (advisor.js / advisor-search.js own that);
@@ -53,7 +53,7 @@ export default async (req) => {
   try { payload = JSON.parse(raw || "{}"); } catch (e) {}
 
   // lightweight connection test - no API spend
-  if (payload.ping) return json(key ? { ok: true, model: MODEL, version: "2.00" } : { error: "ANTHROPIC_API_KEY not set" });
+  if (payload.ping) return json(key ? { ok: true, model: MODEL, version: "2.02" } : { error: "ANTHROPIC_API_KEY not set" });
   if (!key) return json({ error: "ANTHROPIC_API_KEY not set in Netlify" }, 500);
 
   const name = (payload.name || "").toString().slice(0, 120).trim();

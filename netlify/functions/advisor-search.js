@@ -1,4 +1,4 @@
-// KUIU Field Kit v2.00 — gear advisor (STREAMING + kuiu.com WEB SEARCH).
+// KUIU Field Kit v2.02 — gear advisor (STREAMING + kuiu.com WEB SEARCH).
 // The "Pro" advisor: one streaming Anthropic call with web_search restricted to kuiu.com so the model
 // can verify specs live. Web search adds latency, so this needs the 26 s function timeout (Netlify Pro,
 // activated via support). On the default 10 s limit the client falls back to advisor.js automatically.

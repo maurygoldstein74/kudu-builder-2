@@ -1,4 +1,4 @@
-// KUIU Field Kit v2.00 — gear advisor (STREAMING, no web search).
+// KUIU Field Kit v2.02 — gear advisor (STREAMING, no web search).
 // Single streaming Anthropic call so tokens arrive as they are produced and the function stays
 // under Netlify's default 10 s limit. Modern fetchable-module signature (returns a ReadableStream).
 //
