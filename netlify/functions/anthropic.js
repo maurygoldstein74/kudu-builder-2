@@ -1,148 +1,97 @@
-// KUIU Field Kit — gear-spec researcher (server-side).
+// KUIU Field Kit v2.00 — gear-spec researcher (server-side).
 // Reads ANTHROPIC_API_KEY from Netlify env vars so the key is NEVER in the client.
-// Optional: set CLAUDE_MODEL to choose a model (e.g. claude-sonnet-5, claude-haiku-4-5-20251001).
+// Optional: CLAUDE_MODEL (model id), FK_ALLOWED_ORIGIN (origin gate, see lib/fk-common.js).
+// v2.00: the old in-function advisor loop is gone (advisor.js / advisor-search.js own that);
+// the research schema now returns the fields the warmth-budget engine needs.
+// Served at the default path /.netlify/functions/anthropic (the client posts {name} or {ping}).
+
+import { originAllowed, BODY_CAP } from "../lib/fk-common.js";
 
 const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-4-6";
 
 const SYSTEM = [
-  "You are a gear-spec researcher for a whitetail / upland / waterfowl hunting layering app.",
-  "Given a piece of apparel (usually KUIU, sometimes Sitka / First Lite / etc.), search the web for the",
-  "product and its real specs, then respond with ONLY a compact JSON object — no prose, no markdown, no code fences.",
+  "You are a gear-spec researcher for a whitetail / upland / waterfowl hunting layering app that models warmth as insulation.",
+  "Given a piece of apparel (usually KUIU, sometimes Sitka / First Lite / etc.), search the web for the product's real specs,",
+  "then respond with ONLY a compact JSON object - no prose, no markdown, no code fences. Numbers must be real specs or clearly",
+  "reasonable estimates; use null when unknown.",
   "Schema:",
   "{",
   '  "name": string (clean product name),',
-  '  "category": one of "base","mid","insulation","softshell","shell","wader","pant","headwear","gloves","boots","accessory",',
-  '  "tempMin": number (deg F, low end of a realistic comfort range for its intended use, static hunting),',
-  '  "tempMax": number (deg F, high end),',
-  '  "quiet": boolean (soft/brushed face fit for close-range whitetail; true for fleece/wool/softshell/insulators, false for slick nylon rain shells),',
-  '  "windproof": boolean,',
-  '  "waterproof": boolean (true only for a hardshell/wader with a waterproof membrane),',
-  '  "insulation": one of "down","synthetic","fleece","merino","none",',
+  '  "category": one of "base","shirt","mid","insulation","softshell","shell","wader","pant","headwear","gloves","boots","accessory",',
+  '  "slot": one of "torso","legs","head","neck","hands","feet","sock","vest","wader",',
+  '  "pos": array; torso pieces from ["base","mid","insul","outer"] (a piece may list two, e.g. a 200 g/m2 merino zip-T is ["base","mid"]); legs from ["base","pant","overpant"]; others [],',
+  '  "fit": one of "skin","mid","outer" (KUIU fit tier: next-to-skin base layer; mid-layer fit sized to go under a shell; outer-layer fit),',
+  '  "fabric_gsm": number or null (shell/face fabric weight g/m2),',
+  '  "insulation_type": one of "down","synthetic","fleece","merino","none",',
+  '  "insulation_gsm": number or null (synthetic insulation g/m2, body panel),',
+  '  "fill_oz": number or null (down fill weight in ounces, size L),',
+  '  "membrane": boolean (true only for a waterproof membrane: Torain/Dermizax/Gore-style, waders, rubber boots),',
+  '  "windproof": boolean (true for membranes and foam-laminated SynthaCell-style faces; wind-resistant woven = false),',
+  '  "wind_resistant": boolean (DWR woven softshell faces etc.),',
+  '  "quiet_1_10": number (10 = silent brushed knit for close-range whitetail, 4 = crinkly rain shell, 6 = ordinary woven),',
+  '  "active": boolean (true if it breathes well enough to wear while walking hard; puffies = false),',
+  '  "weight_oz": number or null (garment weight),',
+  '  "tempMin": number (deg F, coldest air temp the piece is useful at in its intended role, static hunting),',
+  '  "tempMax": number (deg F, warmest air temp it is useful at),',
   '  "disciplines": array, any of ["deer","upland","waterfowl"], where it fits best,',
+  '  "pattern": string (camo pattern or color, e.g. "Valo", "Verde", "Blaze", "Solid"),',
   '  "note": short one-line placement tip (max ~15 words)',
   "}",
   "If you cannot find the exact item, infer sensibly from the name. Output JSON only."
 ].join("\n");
 
-exports.handler = async (event) => {
-  const headers = { "content-type": "application/json" };
-  if (event.httpMethod !== "POST")
-    return { statusCode: 405, headers, body: JSON.stringify({ error: "Method not allowed" }) };
+export default async (req) => {
+  const json = (obj, status) => new Response(JSON.stringify(obj), { status: status || 200, headers: { "content-type": "application/json" } });
+  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  if (!originAllowed(req.headers.get("origin"), req.headers.get("referer"))) return json({ error: "Origin not allowed" }, 403);
 
   const key = process.env.ANTHROPIC_API_KEY;
+  let raw = "";
+  try { raw = await req.text(); } catch (e) {}
+  if (raw.length > BODY_CAP) return json({ error: "Request too large" }, 413);
   let payload = {};
-  try { payload = JSON.parse(event.body || "{}"); } catch (e) {}
+  try { payload = JSON.parse(raw || "{}"); } catch (e) {}
 
-  // lightweight connection test — no API spend
-  if (payload.ping)
-    return { statusCode: 200, headers, body: JSON.stringify(key ? { ok: true, model: MODEL } : { error: "ANTHROPIC_API_KEY not set" }) };
-
-  if (!key)
-    return { statusCode: 500, headers, body: JSON.stringify({ error: "ANTHROPIC_API_KEY not set in Netlify" }) };
-
-  // ---- Advisor mode: free-form question about gear fit / logic ----
-  if (payload.ask) {
-    const question = payload.ask.toString().slice(0, 1500).trim();
-    const owned = (payload.owned || "").toString().slice(0, 4000);
-    const advSystem = [
-      "You are the gear advisor built into a KUIU-focused hunting layering app. The app recommends a weather-driven clothing loadout for whitetail (stationary stand), upland (on foot), and waterfowl (blind) hunting, drawing only from gear the user actually owns - almost entirely KUIU. Your job is to help the user decide whether a piece of gear they are considering fits their kit, and to explain the app's layering logic.",
-      "",
-      "GROUNDING RULES:",
-      "- The user's owned gear is listed at the end. Reason from THAT, not a generic wardrobe.",
-      "- Default to KUIU. When they name a product, assume KUIU unless they say otherwise, and use web search to pull real specs: search kuiu.com product and collection pages first for fabric, weight, fill, temp intent and fit (base / mid / outer). Then check hunting forums - rokslide.com, archerytalk.com, and reddit r/Hunting or r/bowhunting - for real-world temperature feedback and how pieces layer, since KUIU's own copy understates ranges.",
-      "- Verify before judging. Do not guess a spec you can confirm with a quick search.",
-      "",
-      "HOW TO ANSWER:",
-      "- NEW piece: state plainly whether it fills a real gap or duplicates something owned, name the specific owned piece it overlaps, and give the temperature band + discipline where it would slot in. If it duplicates, say do not buy it.",
-      "- Two-option question (X or Y): pick one, say why, in terms of the gap it fills in THIS kit.",
-      "- Logic question: explain the reasoning - quiet brushed/fleece faces for close-range whitetail, waterproof vs merely wind-resistant, outer-fit down never layered under a shell (it compresses), waders as the waterfowl waterproofing, activity raising/lowering the dressed-for temp.",
-      "- Be direct and opinionated, buy-once-cry-once. Never pad. A few tight paragraphs, plain text (no markdown headers).",
-      "",
-      "USER'S OWNED GEAR:",
-      owned
-    ].join("\n");
-    // Agentic loop: let the model search as many rounds as it needs, accumulating text,
-    // until it stops for a real reason (end_turn) or we hit a hard iteration cap.
-    const msgs = [{ role: "user", content: question }];
-    const MAX_TURNS = 6;          // each turn may include up to 5 web searches
-    const PER_TURN_TOKENS = 4096; // generous so a turn is never starved mid-answer
-    let collected = [];
-    let lastStop = null;
-    try {
-      for (let turn = 0; turn < MAX_TURNS; turn++) {
-        const resp = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-          body: JSON.stringify({
-            model: MODEL,
-            max_tokens: PER_TURN_TOKENS,
-            system: advSystem,
-            messages: msgs,
-            tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 5 }]
-          })
-        });
-        const dd = await resp.json();
-        if (!resp.ok) {
-          const msg = (dd && dd.error && dd.error.message) || ("HTTP " + resp.status);
-          // if we already gathered some text over prior turns, return that rather than erroring
-          if (collected.length) break;
-          return { statusCode: 502, headers, body: JSON.stringify({ error: msg }) };
-        }
-        lastStop = dd.stop_reason;
-        const txt = (dd.content || []).filter(b => b.type === "text").map(b => b.text).join("\n").trim();
-        if (txt) collected.push(txt);
-        // Continue only if the model paused to use a tool (pause_turn) or ran tools this turn.
-        const usedTool = (dd.content || []).some(b => b.type === "server_tool_use" || b.type === "web_search_tool_result");
-        if (dd.stop_reason === "pause_turn" || (usedTool && dd.stop_reason !== "end_turn")) {
-          msgs.push({ role: "assistant", content: dd.content });
-          continue;
-        }
-        break; // end_turn, max_tokens with final text, or nothing more to do
-      }
-    } catch (e) {
-      if (!collected.length) return { statusCode: 502, headers, body: JSON.stringify({ error: "Upstream request failed: " + (e && e.message || e) }) };
-    }
-    const answer = collected.join("\n\n").trim();
-    if (!answer) {
-      const note = lastStop === "max_tokens"
-        ? "The research ran long and did not finish. Try asking about one specific piece (e.g. \"KUIU Peloton 240 Zip-T\")."
-        : "No answer came back - try naming the exact product.";
-      return { statusCode: 200, headers, body: JSON.stringify({ answer: "", note: note }) };
-    }
-    return { statusCode: 200, headers, body: JSON.stringify({ answer: answer }) };
-  }
+  // lightweight connection test - no API spend
+  if (payload.ping) return json(key ? { ok: true, model: MODEL, version: "2.00" } : { error: "ANTHROPIC_API_KEY not set" });
+  if (!key) return json({ error: "ANTHROPIC_API_KEY not set in Netlify" }, 500);
 
   const name = (payload.name || "").toString().slice(0, 120).trim();
-  if (!name)
-    return { statusCode: 400, headers, body: JSON.stringify({ error: "No item name provided" }) };
+  if (!name) return json({ error: "No item name provided" }, 400);
 
   const body = {
     model: MODEL,
-    max_tokens: 900,
+    max_tokens: 1200,
     system: SYSTEM,
     messages: [{ role: "user", content: 'Research this hunting apparel item and return ONLY the JSON. Item: "' + name + '"' }],
-    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3 }]
+    // one search keeps the call inside Netlify's limit (netlify.toml asks for 26 s; the default is 10 s)
+    tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 1 }]
   };
 
   let data;
   try {
+    const ctl = (typeof AbortController !== "undefined") ? new AbortController() : null;
+    const timer = ctl ? setTimeout(() => { try { ctl.abort(); } catch (e) {} }, 24000) : null;   // stay inside the function limit
     const resp = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: ctl ? ctl.signal : undefined
     });
+    if (timer) clearTimeout(timer);
     data = await resp.json();
     if (!resp.ok) {
       const msg = (data && data.error && data.error.message) || ("HTTP " + resp.status);
-      return { statusCode: 502, headers, body: JSON.stringify({ error: msg }) };
+      return json({ error: msg }, 502);
     }
   } catch (e) {
-    return { statusCode: 502, headers, body: JSON.stringify({ error: "Upstream request failed: " + (e && e.message || e) }) };
+    const aborted = e && e.name === "AbortError";
+    return json({ error: aborted ? "Research timed out - try a more specific product name." : ("Upstream request failed: " + (e && e.message || e)) }, aborted ? 504 : 502);
   }
 
   const text = (data.content || []).filter(b => b.type === "text").map(b => b.text).join("\n");
   let item = null;
   const m = text.match(/\{[\s\S]*\}/);
   if (m) { try { item = JSON.parse(m[0]); } catch (e) {} }
-  return { statusCode: 200, headers, body: JSON.stringify({ item, raw: text }) };
+  return json({ item, raw: text });
 };

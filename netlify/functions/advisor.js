@@ -1,85 +1,84 @@
-// KUIU Field Kit — gear advisor (STREAMING).
-// Separate from anthropic.js so the advisor can stream tokens as they arrive and stay
-// under Netlify's 10s function limit. Uses a single streaming Anthropic call (no multi-turn
-// search loop, which was what blew the timeout and returned 504s).
-// Uses the modern fetchable-module signature so we can return a ReadableStream body.
+// KUIU Field Kit v2.00 — gear advisor (STREAMING, no web search).
+// Single streaming Anthropic call so tokens arrive as they are produced and the function stays
+// under Netlify's default 10 s limit. Modern fetchable-module signature (returns a ReadableStream).
+//
+// Env: ANTHROPIC_API_KEY (required), CLAUDE_MODEL (optional), FK_ALLOWED_ORIGIN (optional, see lib),
+//      ADVISOR_THINKING=off (optional) to send a plain request without extended-thinking params.
+
+import { originAllowed, advisorSystem, BODY_CAP, OWNED_CAP, ASK_CAP } from "../lib/fk-common.js";
 
 const PRIMARY_MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
-const FALLBACK_MODEL = "claude-sonnet-4-6";  // broadly-available stable ID if primary is not provisioned
-const US = "\u241F"; // control-line marker (thinking status), stripped by the client
-
-function buildSystem(owned) {
-  return [
-    "You are the gear advisor built into a KUIU-focused hunting layering app. The app recommends a weather-driven clothing loadout for whitetail (stationary stand), upland (on foot), and waterfowl (blind) hunting, drawing only from gear the user actually owns - almost entirely KUIU. Your job is to help the user decide whether a piece of gear they are considering fits their kit, and to explain the app's layering logic.",
-    "",
-    "GROUNDING RULES:",
-    "- The user's owned gear is listed at the end. Reason from THAT, not a generic wardrobe.",
-    "- Default to KUIU. When the user names a product, assume KUIU unless they say otherwise. Use your knowledge of KUIU's lineup (Peloton base/grid-fleece line, Merino, Axis Hybrid, Guide DCS, Super Down, Kenai, Proximity, Gale Force, waders, etc.), their fabric weights and intended temperature ranges, and how the pieces layer (base / mid / outer). KUIU's own marketing understates real-world ranges, so lean on how hunters actually run these pieces.",
-    "- If you are not sure of an exact spec, say so briefly rather than inventing a number.",
-    "",
-    "HOW TO ANSWER:",
-    "- NEW piece: state plainly whether it fills a real gap or duplicates something owned, name the specific owned piece it overlaps, and give the temperature band + discipline where it would slot in. If it duplicates, say do not buy it.",
-    "- Two-option question (X vs Y): pick one, say why, in terms of the gap it fills in THIS kit.",
-    "- Logic question: explain the reasoning - quiet brushed/fleece faces for close-range whitetail, waterproof vs merely wind-resistant, outer-fit down never layered under a shell (it compresses), waders as the waterfowl waterproofing, activity raising/lowering the dressed-for temp.",
-    "- Be direct and opinionated, buy-once-cry-once. Never pad. A few tight paragraphs, plain text (no markdown headers).",
-    "",
-    "USER'S OWNED GEAR:",
-    owned
-  ].join("\n");
-}
+const FALLBACK_MODEL = "claude-sonnet-4-6";   // broadly-available stable ID if primary is not provisioned
+const US = "␟";                           // control-line marker (status), stripped by the client
 
 export default async (req) => {
   const json = (obj, status) => new Response(JSON.stringify(obj), { status: status || 200, headers: { "content-type": "application/json" } });
 
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  if (!originAllowed(req.headers.get("origin"), req.headers.get("referer"))) return json({ error: "Origin not allowed" }, 403);
 
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return json({ error: "ANTHROPIC_API_KEY not set in Netlify" }, 500);
 
+  let raw = "";
+  try { raw = await req.text(); } catch (e) {}
+  if (raw.length > BODY_CAP) return json({ error: "Request too large" }, 413);
   let payload = {};
-  try { payload = await req.json(); } catch (e) {}
+  try { payload = JSON.parse(raw || "{}"); } catch (e) {}
 
-  const question = (payload.ask || "").toString().slice(0, 1500).trim();
+  const question = (payload.ask || "").toString().slice(0, ASK_CAP).trim();
   if (!question) return json({ error: "No question provided" }, 400);
-  const owned = (payload.owned || "").toString().slice(0, 4000);
+  const owned = (payload.owned || "").toString().slice(0, OWNED_CAP);
+  const useThinking = String(process.env.ADVISOR_THINKING || "on").toLowerCase() !== "off";
 
-  async function callModel(model) {
+  function body(model, thinking) {
+    const b = {
+      model: model,
+      max_tokens: thinking ? 8000 : 2048,
+      stream: true,
+      system: advisorSystem(owned),
+      messages: [{ role: "user", content: question }]
+    };
+    if (thinking) { b.thinking = { type: "adaptive" }; b.output_config = { effort: "medium" }; }
+    return b;
+  }
+  async function callModel(model, thinking) {
     return fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({
-        model: model,
-        max_tokens: 8000,                       // big budget: thinking + a full answer, never truncates
-        stream: true,
-        thinking: { type: "adaptive" },         // reason first for better comparison/judgment answers
-        output_config: { effort: "medium" },    // medium ~= Sonnet 4.6 high; strong reasoning, leaves room to answer in the 10s window
-        system: buildSystem(owned),
-        messages: [{ role: "user", content: question }]
-      })
+      body: JSON.stringify(body(model, thinking))
     });
   }
+  async function errText(resp) {
+    let msg = "HTTP " + resp.status;
+    try { const d = await resp.json(); if (d && d.error && d.error.message) msg = d.error.message; } catch (e) {}
+    return msg;
+  }
 
-  let usedModel = PRIMARY_MODEL;
-  let upstream;
+  // Attempt ladder, in order: primary+thinking -> primary plain -> fallback+thinking -> fallback plain.
+  // Any 400/404 (model unknown OR a parameter rejected) just moves to the next rung; each response body is
+  // read at most once (errText caches the message on the attempt record). Other statuses stop the ladder.
+  const ladder = [];
+  if (useThinking) ladder.push({ model: PRIMARY_MODEL, thinking: true });
+  ladder.push({ model: PRIMARY_MODEL, thinking: false });
+  if (FALLBACK_MODEL !== PRIMARY_MODEL) {
+    if (useThinking) ladder.push({ model: FALLBACK_MODEL, thinking: true });
+    ladder.push({ model: FALLBACK_MODEL, thinking: false });
+  }
+  let usedModel = PRIMARY_MODEL, upstream = null, lastErr = "";
   try {
-    upstream = await callModel(PRIMARY_MODEL);
-    // If the primary model is rejected (bad/unprovisioned model id -> 404/400), retry with the stable one.
-    if (!upstream.ok && (upstream.status === 404 || upstream.status === 400) && PRIMARY_MODEL !== FALLBACK_MODEL) {
-      let firstErr = "HTTP " + upstream.status;
-      try { const d = await upstream.json(); if (d && d.error && d.error.message) firstErr = d.error.message; } catch (e) {}
-      // only fall back if the error looks model-related
-      if (/model/i.test(firstErr)) { usedModel = FALLBACK_MODEL; upstream = await callModel(FALLBACK_MODEL); }
-      else { return json({ error: firstErr }, 502); }
+    for (const rung of ladder) {
+      usedModel = rung.model;
+      upstream = await callModel(rung.model, rung.thinking);
+      if (upstream.ok) break;
+      lastErr = await errText(upstream);            // consumed exactly once, cached here
+      if (upstream.status !== 400 && upstream.status !== 404) break;   // auth/rate/5xx: no point retrying variants
     }
   } catch (e) {
     return json({ error: "Upstream request failed: " + (e && e.message || e) }, 502);
   }
 
-  if (!upstream.ok) {
-    let msg = "HTTP " + upstream.status;
-    try { const d = await upstream.json(); if (d && d.error && d.error.message) msg = d.error.message; } catch (e) {}
-    return json({ error: msg + " (model: " + usedModel + ")" }, 502);
-  }
+  if (!upstream || !upstream.ok) return json({ error: (lastErr || ("HTTP " + (upstream ? upstream.status : "?"))) + " (model: " + usedModel + ")" }, 502);
 
   // Transform Anthropic's SSE stream into a plain-text token stream for the client.
   const reader = upstream.body.getReader();
@@ -90,7 +89,7 @@ export default async (req) => {
 
   const stream = new ReadableStream({
     async start(controller) {
-      const enc2 = new TextEncoder();
+      const send = (t) => controller.enqueue(encoder.encode(t));
       try {
         while (true) {
           const { done, value } = await reader.read();
@@ -102,26 +101,25 @@ export default async (req) => {
             const s = line.trim();
             if (!s.startsWith("data:")) continue;
             const data = s.slice(5).trim();
-            if (data === "[DONE]") continue;
+            if (!data || data === "[DONE]") continue;
             let evt;
             try { evt = JSON.parse(data); } catch (e) { continue; }
             if (evt.type === "content_block_start" && evt.content_block && evt.content_block.type === "thinking") {
-              controller.enqueue(encoder.encode(US + JSON.stringify({ status: "thinking" }) + "\n"));
+              send(US + JSON.stringify({ status: "thinking" }) + "\n");
             } else if (evt.type === "content_block_delta" && evt.delta && evt.delta.type === "text_delta") {
               gotText = true;
-              controller.enqueue(encoder.encode(evt.delta.text));
+              send(evt.delta.text);
             } else if (evt.type === "error" || (evt.error && evt.error.message)) {
-              // Anthropic streamed an error event (bad model, overloaded, etc.)
               const em = (evt.error && evt.error.message) || (evt.message) || "stream error";
-              controller.enqueue(encoder.encode("[advisor error: " + em + "]"));
+              send("[advisor error: " + em + "]");
               gotText = true;
             }
           }
         }
       } catch (e) {
-        controller.enqueue(enc2.encode("[advisor error: " + (e && e.message || e) + "]"));
+        send("[advisor error: " + (e && e.message || e) + "]");
       } finally {
-        if (!gotText) controller.enqueue(enc2.encode("[advisor: model '" + usedModel + "' returned no text - check ANTHROPIC_API_KEY / CLAUDE_MODEL env vars in Netlify]"));
+        if (!gotText) send("[advisor: model '" + usedModel + "' returned no text - check ANTHROPIC_API_KEY / CLAUDE_MODEL env vars in Netlify]");
         controller.close();
       }
     }

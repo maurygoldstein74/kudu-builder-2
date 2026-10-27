@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Field Kit v1.84</title>
+<title>Field Kit v2.00</title>
 <meta name="theme-color" content="#14161A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -233,6 +233,19 @@
   .mc-field input:focus{outline:none;border-color:var(--mode)}
   .mc-wet{display:flex;align-items:center;gap:7px;font-size:.82rem;color:var(--ink);cursor:pointer}
   .mc-wet input{width:16px;height:16px;accent-color:var(--mode)}
+  #windowSeg{grid-template-columns:repeat(4,1fr)}
+  #windowSeg button{font-size:.88rem;padding:9px 2px}
+  .mc-field select{font-family:'JetBrains Mono';font-size:.8rem;background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:8px 10px}
+  .phase{margin-top:4px}
+  .phase + .phase{margin-top:18px;border-top:2px solid var(--line);padding-top:10px}
+  .phase-h{display:flex;align-items:center;justify-content:space-between;padding:4px 2px 6px}
+  .phase-h .t{font-family:'Barlow Condensed';font-weight:600;font-size:1.05rem;letter-spacing:.05em;text-transform:uppercase;color:var(--mode)}
+  .phase-h .c{font-family:'JetBrains Mono';font-size:.62rem;color:var(--faint);letter-spacing:.08em}
+  .budget{font-size:.8rem;line-height:1.45;color:var(--muted);padding:2px 2px 10px}
+  .item .sub.alt{color:var(--faint)}
+  .notes li.gapnote{color:var(--warn)}
+  .notes li.gapnote::before{color:var(--warn)}
+  .vermark{font-family:'JetBrains Mono';font-size:.58rem;color:var(--faint);letter-spacing:.14em;text-align:center;margin:26px 0 4px;text-transform:uppercase}
   .hidden{display:none!important}
   .fade{animation:fade .35s ease}
   @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
@@ -299,10 +312,10 @@
       </div>
       <div class="feels">
         <span class="big" id="feelsBig">--</span><span class="deg" id="feelsDeg">&deg;</span>
-        <span class="lab"><span class="l1">Feels like</span><span class="l2 cond" id="wxText">&mdash;</span></span>
+        <span class="lab"><span class="l1">Air temp</span><span class="l2 cond" id="wxText">&mdash;</span></span>
       </div>
       <div class="metrics">
-        <div class="metric"><div class="mv mono" id="mActual">--&deg;</div><div class="mk">Air temp</div></div>
+        <div class="metric"><div class="mv mono" id="mActual">--&deg;</div><div class="mk">Feels like</div></div>
         <div class="metric"><div class="mv mono" id="mWind">-- mph</div><div class="mk">Wind / gust</div></div>
         <div class="metric"><div class="mv mono" id="mPrecip">--%</div><div class="mk">Precip</div></div>
       </div>
@@ -315,11 +328,13 @@
       <button data-win="dawn" aria-pressed="true">Dawn<span class="sub">coldest</span></button>
       <button data-win="midday" aria-pressed="false">Midday<span class="sub">noon</span></button>
       <button data-win="afternoon" aria-pressed="false">Afternoon<span class="sub">warmest</span></button>
+      <button data-win="evening" aria-pressed="false">Evening<span class="sub">last light</span></button>
     </div>
     <div class="manualcond hidden" id="manualCond">
       <div class="mc-field"><span>TEMP</span><input type="number" id="mTempIn" value="45" min="-40" max="120" inputmode="numeric">&deg;F</div>
       <div class="mc-field"><span>WIND</span><input type="number" id="mWindIn" value="5" min="0" max="80" inputmode="numeric">mph</div>
       <label class="mc-wet"><input type="checkbox" id="mWetIn"> Wet / rain</label>
+      <div class="mc-field"><span>SKY</span><select id="mSkyIn"><option value="0">Overcast</option><option value="1" selected>Partly sunny</option><option value="2">Full sun</option></select></div>
     </div>
     <div class="modes" id="modeSeg" role="group" aria-label="Hunt mode">
       <button class="m-deer" data-mode="deer" aria-pressed="true"><span class="ic">&#129433;</span>Deer</button>
@@ -345,6 +360,7 @@
     </section>
     <div class="notes"><div class="nt">Field notes</div><ul id="notes"></ul></div>
   </div>
+  <div class="vermark">FIELD KIT v2.00</div>
 </section>
 
 <section class="view" id="view-closet">
@@ -367,7 +383,7 @@
   <section class="card add-card">
     <div class="lbl">Add gear</div>
     <div class="add-row">
-      <input type="text" id="gearInput" placeholder="e.g. KUIU Kenai Ultra Hooded Jacket" autocomplete="off">
+      <input type="text" id="gearInput" placeholder="e.g. KUIU Encounter 290 Fleece Bottom" autocomplete="off">
       <button class="btn sm" id="gearGo">Research</button>
     </div>
     <div class="add-example">Type a product name &mdash; Claude looks up the temp range, layer, and materials.</div>
@@ -376,6 +392,7 @@
   </section>
   <div class="edit-banner" id="editBanner" hidden>Edit mode is ON &mdash; tap Delete on a piece, then confirm. Turn it off in Setup when done.</div>
   <div id="catalog"></div>
+  <div class="vermark">FIELD KIT v2.00</div>
 </section>
 
 <section class="view" id="view-setup">
@@ -394,12 +411,18 @@
     <h3>Gear advisor</h3>
     <p>Ask about a piece you are considering &mdash; how it fits what you own &mdash; or why the loadout logic does what it does. Answers are grounded in your closet.</p>
     <div class="adv-ex" id="advEx"></div>
-    <textarea id="advInput" rows="3" placeholder="e.g. Would the Kenai Ultra jacket fill a gap in my kit? &nbsp;or&nbsp; Why does it skip a shell below 38 on a cold sit?"></textarea>
+    <textarea id="advInput" rows="3" placeholder="e.g. Would an insulated mid layer fill a gap in my kit? &nbsp;or&nbsp; Why no shell over the Proximity on a dry sit?"></textarea>
     <div style="display:flex;gap:8px;margin-top:10px">
       <button class="btn sm" id="advGo">Ask</button>
       <button class="btn ghost sm" id="advClear">Clear</button>
     </div>
     <div class="adv-answer hidden" id="advAnswer"></div>
+  </section>
+  <section class="card setup-card">
+    <h3>How you hunt</h3>
+    <p>The loadout sizes insulation to how long you sit still. Blaze adds the orange cap and vest to deer loadouts.</p>
+    <div class="setrow"><span class="k">Sit length</span><select id="sitHours" class="mono" style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;color:var(--ink);padding:7px 10px"><option value="1">1 hour</option><option value="2">2 hours</option><option value="3" selected>3 hours</option><option value="4">4 hours</option><option value="5">5 hours</option><option value="6">6 hours</option></select></div>
+    <div class="setrow"><span class="k">Blaze orange (deer)</span><button class="switch" id="blazeToggle" role="switch" aria-checked="true" aria-label="Blaze orange"><span class="knob"></span></button></div>
   </section>
   <section class="card setup-card">
     <h3>Edit closet</h3>
@@ -408,12 +431,14 @@
   </section>
   <section class="card setup-card">
     <h3>About</h3>
-    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v1.84</span></div>
+    <div class="setrow"><span class="k">Version</span><span class="mono" id="verText">v2.00</span></div>
+    <div class="setrow"><span class="k">Loadout engine</span><span class="mono">Warmth budget &middot; engine.js</span></div>
     <div class="setrow"><span class="k">Weather</span><span class="mono">Open-Meteo &middot; no key</span></div>
     <div class="setrow"><span class="k">Place name</span><span class="mono">BigDataCloud</span></div>
     <div class="setrow"><span class="k">Gear specs</span><span class="mono">Claude &middot; your key</span></div>
     <p style="margin-top:12px;font-size:.76rem;color:var(--faint)">Recommendations are built from your own KUIU closet. Not affiliated with KUIU.</p>
   </section>
+  <div class="vermark">FIELD KIT v2.00</div>
 </section>
 
 <nav class="tabbar" role="tablist" aria-label="Sections">
@@ -430,6 +455,7 @@
     <span class="tl">Setup</span>
   </button>
 </nav>
+<script src="engine.js"></script>
 <script>
 "use strict";
 /* home-screen icon (user-supplied KUIU mark) + PWA manifest */
@@ -438,88 +464,77 @@ try{ document.getElementById("favicon").href=ICON;
   var __mani={name:"KUIU Field Kit",short_name:"Field Kit",display:"standalone",background_color:"#141E2A",theme_color:"#14161A",start_url:".",icons:[{src:ICON,sizes:"192x192",type:"image/png"},{src:ICON,sizes:"512x512",type:"image/png"}]};
   document.getElementById("manifestLink").href=URL.createObjectURL(new Blob([JSON.stringify(__mani)],{type:"application/manifest+json"}));
 }catch(e){}
-const S = { lat:null, lon:null, elev:null, windows:null, win:'dawn', mode:'deer', act:'light', wfEnv:'marsh', locName:'', view:'loadout', manual:{on:false, temp:45, wind:5, wet:false} };
+/* ============================================================================
+   KUIU Field Kit v2.00 — app shell.
+   All layering decisions live in engine.js (window.FK). This file only gathers
+   weather + closet state, calls FK.recommend(), and paints the result.
+   ============================================================================ */
+const APP_VERSION='2.00';
+const S = { lat:null, lon:null, elev:null, windows:null, win:'dawn', mode:'deer', act:'light', wfEnv:'marsh', locName:'', view:'loadout',
+            manual:{on:false, temp:45, wind:5, wet:false, sky:1} };
 const HOUR = 3600*1000;
 
 /* guarded storage (works on Netlify; degrades to memory in sandboxed previews) */
 function lsGet(k,def){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):def; }catch(e){ return def; } }
 function lsSet(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); return true; }catch(e){ return false; } }
-let customMem = (function(){
-  var raw = lsGet('fk_custom', []);
-  if(!Array.isArray(raw)) return [];
-  var valid = raw.filter(function(x){ return x && typeof x.name==='string' && x.name.trim() && typeof x.cat==='string' && x.cat.trim(); });
-  return valid;
-})();
+lsSet('fk_schema', 2);
 let removedMem = (function(){ var r=lsGet('fk_removed', []); return Array.isArray(r)?r.filter(function(x){return typeof x==='string'&&x.trim();}):[]; })();
-function isRemoved(name){ return removedMem.indexOf(name)>=0; }
-// per-item edits (built-in or custom): { "Item Name": {tmin?,tmax?,pattern?,url?} }
+// per-item edits (built-in or custom), keyed by NAME: { "Item Name": {tmin?,tmax?,pattern?,url?} }
 let overridesMem = (function(){ var o=lsGet('fk_overrides', {}); return (o&&typeof o==='object'&&!Array.isArray(o))?o:{}; })();
-function withOverrides(it){
-  var ov=overridesMem[it.name]; if(!ov) return it;
-  var out=Object.assign({},it);
-  if(ov.tmin!=null && isFinite(ov.tmin)) out.tmin=ov.tmin;
-  if(ov.tmax!=null && isFinite(ov.tmax)) out.tmax=ov.tmax;
-  if(typeof ov.pattern==='string') out.pattern=ov.pattern;
-  if(typeof ov.url==='string' && ov.url.trim()) out.url=ov.url.trim();
-  out.edited=true;
-  return out;
-}
+let prefs = (function(){ var p=lsGet('fk_prefs', {}); if(!p||typeof p!=='object') p={}; return { sitHours: clampNum(p.sitHours,1,6,3), blaze: (p.blaze===undefined)?true:!!p.blaze }; })();
 var editMode = false;   // session-only: reset on reload so deletes stay deliberate
 let tripOn = lsGet('fk_trip_on', false);
-let tripSet = lsGet('fk_trip_set', []);   // array of catalog item names that are 'packed'
+let tripSet = lsGet('fk_trip_set', []);   // array of item NAMES that are 'packed'
 let homeMem = lsGet('fk_home', null);
 
-/* owned closet (data for the Closet tab + custom-item comparison) */
-const OWNED = [
-  {name:'120 Merino LS', cat:'base', tmin:50, tmax:75, disc:['deer','upland','waterfowl'], q:true, pattern:'Universal'},
-  {name:'120 Merino SS', cat:'base', tmin:62, tmax:85, disc:['deer','upland','waterfowl'], q:true, pattern:'Universal'},
-  {name:'Encounter LT shirt', cat:'shirt', tmin:55, tmax:85, disc:['deer','upland'], pattern:'Valo'},
-  {name:'Upland shirt', cat:'shirt', tmin:50, tmax:80, disc:['upland'], pattern:'Valo'},
-  {name:'Tiburon Snap Shirt', cat:'shirt', tmin:55, tmax:90, disc:['deer','upland','waterfowl'], q:true, pattern:'Valo'},
-  {name:'Peloton 118', cat:'base', tmin:30, tmax:60, disc:['deer','upland','waterfowl'], pattern:'Universal'},
-  {name:'Pro Merino 200 Zip-T', cat:'base', tmin:30, tmax:58, disc:['deer','upland','waterfowl'], q:true, pattern:'Universal'},
-  {name:'Vital PRO top', cat:'base', tmin:0, tmax:45, disc:['deer','upland','waterfowl'], pattern:'Universal'},
-  {name:'Peloton 200 Zip-T', cat:'mid', tmin:20, tmax:52, disc:['deer','upland','waterfowl'], pattern:'Valo'},
-  {name:'Rubicon jacket', cat:'softshell', tmin:40, tmax:60, disc:['deer','upland'], w:true, pattern:'Valo'},
-  {name:'Guide DCS jacket', cat:'softshell', tmin:35, tmax:65, disc:['deer','upland'], w:true, pattern:'Valo'},
-  {name:'Axis Hybrid Hooded jacket', cat:'softshell', tmin:32, tmax:58, disc:['deer','upland'], q:true, w:true, pattern:'Valo'},
-  {name:'Kutana Gale Force pant', cat:'pant', tmin:0, tmax:35, disc:['deer'], w:true, wp:true, pattern:'Valo'},
-  {name:'Proximity jacket', cat:'insulation', tmin:30, tmax:52, disc:['deer','upland','waterfowl'], q:true, w:true, pattern:'Valo'},
-  {name:'Super Down PRO jacket', cat:'insulation', tmin:15, tmax:38, disc:['deer','waterfowl'], w:true, pattern:'Valo'},
-  {name:'Super Down Haven jacket', cat:'insulation', tmin:0, tmax:28, disc:['deer','waterfowl'], q:true, w:true, pattern:'Valo'},
-  {name:'HD Flex Storm Shell', cat:'shell', tmin:0, tmax:75, disc:['deer','upland','waterfowl'], w:true, wp:true, pattern:'Valo'},
-  {name:'Kutana Storm Shell jacket', cat:'shell', tmin:0, tmax:75, disc:['deer','upland','waterfowl'], w:true, wp:true, pattern:'Valo'},
-  {name:'Kutana Gale Force jacket', cat:'shell', tmin:0, tmax:45, disc:['deer','waterfowl'], w:true, wp:true, pattern:'Valo'},
-  {name:'Kutana Storm Shell pant', cat:'pant', tmin:0, tmax:75, disc:['deer','upland'], w:true, wp:true, pattern:'Valo'},
-  {name:'PRO HD Flex Zip Wader', cat:'wader', tmin:0, tmax:70, disc:['waterfowl'], wp:true, pattern:'Valo'},
-  {name:'Attack pant', cat:'pant', tmin:42, tmax:72, disc:['deer','upland'], pattern:'Valo'},
-  {name:'Encounter pant', cat:'pant', tmin:28, tmax:60, disc:['deer'], q:true, pattern:'Valo'},
-  {name:'Tiburon pant', cat:'pant', tmin:52, tmax:95, disc:['deer','upland'], pattern:'Valo'},
-  {name:'Pro Brush pant', cat:'pant', tmin:25, tmax:70, disc:['upland'], pattern:'Valo'},
-  {name:'Vital PRO bottoms', cat:'base', tmin:0, tmax:45, disc:['deer','upland','waterfowl'], pattern:'Universal'},
-  {name:'Encounter 200 Fleece Bottom', cat:'base', tmin:15, tmax:48, disc:['deer','upland','waterfowl'], q:true, pattern:'Universal'},
-  {name:'Pro Hat - Valo', cat:'headwear', tmin:45, tmax:95, disc:['deer','upland','waterfowl'], pattern:'Valo'},
-  {name:'Pro Hat - Orange', cat:'headwear', tmin:45, tmax:95, disc:['deer'], pattern:'Blaze'},
-  {name:'Kenai beanie', cat:'headwear', tmin:25, tmax:50, disc:['deer','upland','waterfowl'], pattern:'Valo'},
-  {name:'Proximity beanie', cat:'headwear', tmin:0, tmax:35, disc:['deer','upland','waterfowl'], q:true, pattern:'Valo'},
-  {name:'Proximity neck gaiter', cat:'accessory', tmin:0, tmax:45, disc:['deer','waterfowl'], pattern:'Valo'},
-  {name:'Upland Field Vest', cat:'accessory', tmin:null, tmax:null, disc:['upland'], pattern:'Valo'},
-  {name:'Blaze Orange Vest', cat:'accessory', tmin:null, tmax:null, disc:['deer'], pattern:'Blaze'},
-  {name:'ULTRA Merino Crew Sock', cat:'boots', tmin:null, tmax:null, disc:['deer','upland','waterfowl'], pattern:'Universal'},
-  {name:'Precision glove', cat:'gloves', tmin:45, tmax:70, disc:['deer','upland'], pattern:'Valo'},
-  {name:'Yukon glove', cat:'gloves', tmin:33, tmax:52, disc:['deer','upland','waterfowl'], pattern:'Valo'},
-  {name:'Kenai glove', cat:'gloves', tmin:22, tmax:40, disc:['deer','upland','waterfowl'], pattern:'Valo'},
-  {name:'Northstar glove', cat:'gloves', tmin:0, tmax:28, disc:['deer','upland','waterfowl'], pattern:'Valo'},
-  {name:'Ankle Mud Boot', cat:'boots', tmin:40, tmax:75, disc:['deer','upland','waterfowl'], wp:true, pattern:'Valo'},
-  {name:'Danner lace-up boots', cat:'boots', tmin:20, tmax:80, disc:['deer','upland']},
-  {name:'HD Mud Boot', cat:'boots', tmin:0, tmax:48, disc:['deer','waterfowl'], wp:true, pattern:'Valo'}
-];
+function clampNum(v,lo,hi,def){ v=Number(v); if(!isFinite(v)) return def; return Math.max(lo,Math.min(hi,v)); }
+function slugify(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,48)||'item'; }
+
+/* closet grouping (display only) */
 const CAT_GROUPS = [
   ['insulation','Insulation'],['softshell','Soft shells'],['shell','Storm shells'],
   ['base','Base layers'],['shirt','Shirts'],['mid','Mid layers'],['pant','Pants'],['wader','Waders'],
   ['headwear','Head'],['gloves','Hands'],['boots','Feet'],['accessory','Accessories']
 ];
-const SLOT_FOR_CAT = {base:'Base Top',shirt:'Base Top',mid:'Mid',insulation:'Insul',softshell:'Shell',shell:'Shell',wader:'Legs',pant:'Legs',headwear:'Head',gloves:'Hands',boots:'Feet'};
+const MODE_META = {
+  deer:{color:'var(--deer)', label:'DEER · STAND'},
+  upland:{color:'var(--upland)', label:'UPLAND · ON FOOT'},
+  waterfowl:{color:'var(--waterfowl)', label:'WATERFOWL · BLIND'}
+};
+// custom (researched) pieces; anything saved by v1.x is upgraded to the v2 schema on load
+// NOTE: the upgrade needs helpers declared further down (normalizeItem / SLOTS), so it runs in loadCustoms()
+// from the init block at the end of this script, before the first render - not here at declaration time.
+let customMem = [];
+function loadCustoms(){
+  var raw = lsGet('fk_custom', []);
+  if(!Array.isArray(raw)) { customMem=[]; return; }
+  var out=[]; raw.forEach(function(x){
+    if(!(x && typeof x.name==='string' && x.name.trim())) return;
+    // a custom that shares a name with a live built-in can never be addressed (everything is keyed by name) - drop it
+    var clash=builtinNameClash(x.name); if(clash && removedMem.indexOf(clash)<0) return;
+    try{ out.push(upgradeCustom(x)); }catch(e){ try{ console.error('custom upgrade failed', x&&x.name, e); }catch(_){} }
+  });
+  customMem=out;
+  try{ if(raw.length) lsSet('fk_custom', out); }catch(e){}   // persist the re-normalized set
+}
+
+/* ---- the single gear list the engine sees: built-ins + customs, overrides applied, removed dropped ---- */
+function engineReady(){ return typeof window.FK==='object' && window.FK && typeof window.FK.recommend==='function'; }
+function currentGear(){
+  if(!engineReady()) return [];
+  var list=[];
+  try{ list = FK.applyOverrides(FK.CATALOG, overridesMem, removedMem, customMem) || []; }catch(e){ list=[]; }
+  // defensive: every piece needs a stable id and a cat for the closet
+  list.forEach(function(g){ if(!g.id) g.id='custom_'+slugify(g.name); if(!g.cat) g.cat=catForSlot(g); });
+  return list;
+}
+function catForSlot(g){
+  var s=g.slot, p=(g.pos||[]);
+  if(s==='legs') return p.indexOf('base')>=0?'base':'pant';
+  if(s==='torso'){ if(g.combo||g.wp===2) return 'shell'; if(p.indexOf('insul')>=0) return 'insulation'; if(p.indexOf('mid')>=0&&p.indexOf('base')<0) return 'mid'; if(g.fit==='outer') return 'softshell'; return 'base'; }
+  return {head:'headwear',neck:'accessory',hands:'gloves',feet:'boots',sock:'boots',vest:'accessory',wader:'wader'}[s]||'accessory';
+}
+function packedIdSet(gear){ if(!tripOn) return null; var s=new Set(); gear.forEach(function(g){ if(tripSet.indexOf(g.name)>=0) s.add(g.id); }); return s; }
 
 /* helpers */
 function thermalColor(f){
@@ -529,18 +544,26 @@ function thermalColor(f){
 function toEpoch(s, off){ return Date.parse(s + ':00Z') - off*1000; }
 function fmtTime(s){ const t=s.split('T')[1]; let a=t.split(':').map(Number),h=a[0],m=a[1]; const ap=h>=12?'p':'a'; let hh=h%12; if(hh===0)hh=12; return hh+':'+String(m).padStart(2,'0')+ap; }
 function wx(code){
-  const m={0:['Clear','\u2600\uFE0F'],1:['Mostly clear','\uD83C\uDF24\uFE0F'],2:['Partly cloudy','\u26C5'],3:['Overcast','\u2601\uFE0F'],
-    45:['Fog','\uD83C\uDF2B\uFE0F'],48:['Freezing fog','\uD83C\uDF2B\uFE0F'],51:['Light drizzle','\uD83C\uDF26\uFE0F'],53:['Drizzle','\uD83C\uDF26\uFE0F'],55:['Heavy drizzle','\uD83C\uDF26\uFE0F'],
-    56:['Freezing drizzle','\uD83C\uDF27\uFE0F'],57:['Freezing drizzle','\uD83C\uDF27\uFE0F'],61:['Light rain','\uD83C\uDF27\uFE0F'],63:['Rain','\uD83C\uDF27\uFE0F'],65:['Heavy rain','\uD83C\uDF27\uFE0F'],
-    66:['Freezing rain','\uD83C\uDF27\uFE0F'],67:['Freezing rain','\uD83C\uDF27\uFE0F'],71:['Light snow','\uD83C\uDF28\uFE0F'],73:['Snow','\uD83C\uDF28\uFE0F'],75:['Heavy snow','\u2744\uFE0F'],
-    77:['Snow grains','\uD83C\uDF28\uFE0F'],80:['Rain showers','\uD83C\uDF26\uFE0F'],81:['Rain showers','\uD83C\uDF27\uFE0F'],82:['Heavy showers','\u26C8\uFE0F'],
-    85:['Snow showers','\uD83C\uDF28\uFE0F'],86:['Snow showers','\u2744\uFE0F'],95:['Thunderstorm','\u26C8\uFE0F'],96:['Storm + hail','\u26C8\uFE0F'],99:['Storm + hail','\u26C8\uFE0F']};
-  return m[code]||['\u2014','\u2022'];
+  const m={0:['Clear','☀️'],1:['Mostly clear','🌤️'],2:['Partly cloudy','⛅'],3:['Overcast','☁️'],
+    45:['Fog','🌫️'],48:['Freezing fog','🌫️'],51:['Light drizzle','🌦️'],53:['Drizzle','🌦️'],55:['Heavy drizzle','🌦️'],
+    56:['Freezing drizzle','🌧️'],57:['Freezing drizzle','🌧️'],61:['Light rain','🌧️'],63:['Rain','🌧️'],65:['Heavy rain','🌧️'],
+    66:['Freezing rain','🌧️'],67:['Freezing rain','🌧️'],71:['Light snow','🌨️'],73:['Snow','🌨️'],75:['Heavy snow','❄️'],
+    77:['Snow grains','🌨️'],80:['Rain showers','🌦️'],81:['Rain showers','🌧️'],82:['Heavy showers','⛈️'],
+    85:['Snow showers','🌨️'],86:['Snow showers','❄️'],95:['Thunderstorm','⛈️'],96:['Storm + hail','⛈️'],99:['Storm + hail','⛈️']};
+  return m[code]||['—','•'];
+}
+function sunFor(code, win){
+  // 0 overcast/shade, 1 partial, 2 full sun. Dawn/evening sun is low -> never more than 1.
+  if(code===0||code===1) return (win==='midday'||win==='afternoon')?2:1;
+  if(code===2) return 1;
+  return 0;
 }
 function show(id){ document.getElementById(id).classList.remove('hidden'); }
 function hide(id){ document.getElementById(id).classList.add('hidden'); }
 function only(id){ ['startCard','loadingCard','errorCard','result'].forEach(x=> x===id?show(x):hide(x)); }
-function esc(s){ return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// engine flag/note text: escape everything (piece names can come from the research model), then re-allow plain <b>…</b>
+function safeBold(s){ return esc(s).replace(/&lt;b&gt;/g,'<b>').replace(/&lt;\/b&gt;/g,'</b>'); }
 
 /* tab switching */
 function setView(v){
@@ -550,9 +573,9 @@ function setView(v){
     const t=document.getElementById('tab-'+x); t.classList.toggle('on', x===v); t.setAttribute('aria-selected', x===v);
   });
   const tag=document.getElementById('headerTag');
-  tag.textContent = v==='closet' ? 'YOUR CLOSET' : v==='setup' ? 'SETUP' : 'WX \u2192 LOADOUT';
+  tag.textContent = v==='closet' ? 'YOUR CLOSET' : v==='setup' ? 'SETUP' : 'WX → LOADOUT';
   if(v==='closet') renderCloset();
-  if(v==='setup') paintHome();
+  if(v==='setup'){ paintHome(); paintPrefs(); }
   try{ window.scrollTo(0,0); }catch(e){}
 }
 /* geolocation + weather */
@@ -630,467 +653,103 @@ async function loadWeather(){
   only('loadingCard'); setView('loadout');
   const url='https://api.open-meteo.com/v1/forecast?latitude='+S.lat+'&longitude='+S.lon
     +'&hourly=temperature_2m,apparent_temperature,precipitation,precipitation_probability,wind_speed_10m,wind_gusts_10m,weather_code'
-    +'&daily=sunrise,sunset&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=auto&forecast_days=2';
+    +'&daily=sunrise,sunset&temperature_unit=fahrenheit&wind_speed_unit=mph&precipitation_unit=inch&timezone=auto&forecast_days=3';
   try{
     const r=await fetch(url); const d=await r.json();
     S.windows=buildWindows(d);
     if(!S.windows) return fail('Forecast came back empty','Try again, or enter a different spot.');
-    only('result'); render();
+    useForecast(); only('result'); render();
   }catch(e){ fail('Weather did not load','Check your connection and retry.'); }
 }
+/* Four hunt windows. Each is judged over its whole span (max precip chance, summed precip, max gust),
+   with the representative hour = coldest (dawn/evening), warmest (afternoon) or nearest noon (midday).
+   A window whose span has already ended today rolls to tomorrow. */
 function buildWindows(d){
   if(!d.hourly||!d.daily) return null;
-  if(typeof d.elevation==='number') S.elev=d.elevation;   // meters, for camo terrain inference
+  if(typeof d.elevation==='number') S.elev=d.elevation;
   const off=d.utc_offset_seconds||0, H=d.hourly;
-  if(!Array.isArray(H.time)||!H.time.length||!Array.isArray(H.temperature_2m)||!Array.isArray(H.apparent_temperature)) return null;
-  ['precipitation','precipitation_probability','wind_speed_10m','wind_gusts_10m','weather_code'].forEach(function(k){ if(!Array.isArray(H[k])) H[k]=H.time.map(function(){return 0;}); });
-  const hours=H.time.map((t,i)=>({epoch:toEpoch(t,off),local:t,temp:H.temperature_2m[i],feels:H.apparent_temperature[i],
-    precip:H.precipitation[i],pprob:H.precipitation_probability[i],wind:H.wind_speed_10m[i],gust:H.wind_gusts_10m[i],code:H.weather_code[i]}));
+  if(!Array.isArray(H.time)||!H.time.length||!Array.isArray(H.temperature_2m)) return null;
+  ['apparent_temperature','precipitation','precipitation_probability','wind_speed_10m','wind_gusts_10m','weather_code'].forEach(function(k){ if(!Array.isArray(H[k])) H[k]=H.time.map(function(){return 0;}); });
+  const hours=H.time.map((t,i)=>({epoch:toEpoch(t,off),local:t,temp:H.temperature_2m[i],feels:(H.apparent_temperature[i]==null?H.temperature_2m[i]:H.apparent_temperature[i]),
+    precip:H.precipitation[i]||0,pprob:H.precipitation_probability[i]||0,wind:H.wind_speed_10m[i]||0,gust:H.wind_gusts_10m[i]||0,code:H.weather_code[i]||0}));
   const D=d.daily;
   const days=D.time.map((t,i)=>({date:t,sunrise:toEpoch(D.sunrise[i],off),sunset:toEpoch(D.sunset[i],off)}));
-  const now=Date.now(); let hd=0; if(days[0]&&now>days[0].sunset&&days[1]) hd=1;
-  const day=days[hd]||days[0];
+  if(!days.length) return null;
+  const now=Date.now();
   const nearest=tgt=>hours.reduce((b,h)=>Math.abs(h.epoch-tgt)<Math.abs(b.epoch-tgt)?h:b,hours[0]);
-  const between=(a,b,pick)=>{let best=null;for(const h of hours){if(h.epoch>=a&&h.epoch<=b){if(!best||pick(h,best))best=h;}}return best||nearest((a+b)/2);};
-  const dawn=between(day.sunrise-HOUR,day.sunrise+2*HOUR,(h,b)=>h.feels<b.feels);
-  const midday=nearest(toEpoch(day.date+'T12:00',off));
-  const afternoon=between(day.sunrise,day.sunset,(h,b)=>h.feels>b.feels);
-  const dl=hd===0?'Today':'Tomorrow';
-  const st=w=>Object.assign({},w,{dayLabel:dl});
-  return {dawn:st(dawn),midday:st(midday),afternoon:st(afternoon)};
-}
-
-/* recommendation engine */
-// --- KUIU camo pattern advisory (informational; derived from GPS region + mode + date) ---
-// Grounded in KUIU's own guidance: Vias = high-contrast macro for open/rocky/alpine, long range;
-// Verde = green-based, best in spring/early-season green-up and mixed timber; Valo = low-contrast
-// macro+micro for dry/dormant/deciduous (post frost/dry-out), close AND long range.
-function regionArchetype(lat, lon, elevM){
-  if(lat==null||lon==null) return null;
-  var elevFt = (typeof elevM==='number') ? elevM*3.28084 : null;
-  // High country anywhere in the mountain West -> alpine/open
-  if(elevFt!=null && elevFt>=6500 && lon < -102) return 'alpine';
-  // Arid Southwest: low-latitude interior West
-  if(lon < -102 && lat >= 31 && lat <= 42 && lon >= -118) return 'arid_west';
-  // Pacific / far West open & broken country
-  if(lon < -110) return 'west_open';
-  // Great Plains / prairie
-  if(lon >= -104 && lon < -95) return 'plains';
-  // Southeast (Gulf/SE lowland hardwoods & fields)
-  if(lat < 36 && lon >= -95) return 'southeast';
-  // Default eastern/midwestern forest
-  return 'eastern_forest';
-}
-// vegetation state from month + latitude (northern greens up later, browns out earlier)
-function vegState(month, lat){
-  var north = (lat!=null && lat >= 40);
-  // month is 1-12
-  if(month>=4 && month<=6) return 'green';                 // spring green-up
-  if(month>=7 && month<=8) return north?'green':'transitional';
-  if(month===9) return north?'transitional':'green';       // early fall: south still green
-  if(month>=10 && month<=11) return north?'dormant':'transitional';
-  return 'dormant';                                        // Dec-Mar: dormant/leaf-off
-}
-function encounterFor(mode){
-  if(mode==='deer') return 'close';        // stand / ground: close-range breakup matters
-  if(mode==='upland') return 'moving';     // on foot, mid-range, mixed cover
-  return 'variable';                       // waterfowl: blind/decoys, usually close
-}
-function camoAdvice(lat, lon, elevM, mode, dateObj){
-  var region = regionArchetype(lat, lon, elevM);
-  if(!region) return null;
-  var month = (dateObj||new Date()).getMonth()+1;
-  var veg = vegState(month, lat);
-  var enc = encounterFor(mode);
-  var pattern, why, alt='';
-  // 1) Open/rocky/alpine + able to shoot long -> Vias (macro high-contrast, weak up close)
-  if((region==='alpine'||region==='west_open') && enc!=='close'){
-    pattern='Vias'; why='open, broken country where breakup at distance matters most';
-    alt='Valo once vegetation dries out, or if encounters are close';
-  }
-  // 2) Arid / sage / prairie -> Valo year-round (sparse, light, dormant tones)
-  else if(region==='arid_west' || region==='plains'){
-    pattern='Valo'; why='arid, low, light-toned cover where Valo\u2019s muted palette blends year-round';
-    alt='Verde in any green-up flush';
-  }
-  // 3) Green vegetation present -> Verde (green-based)
-  else if(veg==='green'){
-    pattern='Verde'; why='green foliage is up \u2014 Verde\u2019s green base blends the living cover';
-    alt='Valo once the woods brown out / after frost';
-  }
-  // 4) Dormant / dry / leaf-off -> Valo (close+long dual-scale), or Vias if open & long shots
-  else if(veg==='dormant'){
-    if((region==='alpine'||region==='west_open') && enc!=='close'){ pattern='Vias'; why='open late-season country, long shots'; alt='Valo for closer cover'; }
-    else { pattern='Valo'; why='dormant, dried, or leaf-off cover \u2014 Valo\u2019s fall\u2192spring palette fits, and its micro pattern still breaks up close'; alt='Verde if you catch an early-season green stretch'; }
-  }
-  // 5) Transitional -> lean Valo for close hunts, Verde if still greenish
-  else {
-    if(enc==='close'){ pattern='Valo'; why='transitional cover trending dormant; Valo holds close-range breakup'; alt='Verde if greenery is still dominant'; }
-    else { pattern='Verde'; why='transitional cover with green still present'; alt='Valo as it dries out'; }
-  }
-  return {pattern:pattern, why:why, alt:alt, region:region, veg:veg};
-}
-function recommend(mode, w){
-  const feels=Math.round(w.feels), air=Math.round(w.temp), wind=Math.round(w.wind), gust=Math.round(w.gust), pp=Math.round(w.pprob||0), pin=w.precip||0;
-  const wet=pp>=50||pin>0.02, windy=gust>=20||wind>=15;
-  const fBase=(mode==='upland')?air+15:Math.round(w.feels+0.6*(w.temp-w.feels));
-  const act=(mode==='deer')?(S.act||'light'):'light';
-  let f=fBase, insulF=fBase, carry=false, active=false;
-  if(mode==='deer'){ if(act==='medium'){ f=fBase-7; insulF=f; } else if(act==='high'){ f=fBase+12; insulF=fBase; carry=true; active=true; } }
-  const slots=[], notes=[], flags=[];
-  const slot=(k,items)=>slots.push({k,items});
-  const I=(txt,sub,extra)=>Object.assign({txt,sub},extra||{});
-  const none=(txt)=>({txt:txt||'\u2014',none:true});
-  if(mode==='deer') deerKit(f,wet,windy,slot,I,none,notes,flags,{insulF,carry,active,act});
-  else if(mode==='upland') uplandKit(f,wet,windy,slot,I,none,notes,flags);
-  else waterfowlKit(f,wet,windy,slot,I,none,notes,flags,(S.wfEnv||'marsh'));
-  if(mode==='upland') flags.unshift({kind:'info',ic:'\uD83D\uDD25',txt:'<b>Dressing for ~'+f+'\u00B0.</b> You make your own heat walking, so this runs lighter than the '+air+'\u00B0 air \u2014 start a touch cold.'});
-  else if(mode==='deer' && active) flags.unshift({kind:'info',ic:'\uD83D\uDEB6',txt:'<b>Moving hunt.</b> Dressed light like you are active \u2014 your insulation is carried, not worn, to pull on for the still spells.'});
-  else if(mode==='deer' && act==='medium') flags.unshift({kind:'info',ic:'\uD83D\uDEB6',txt:'<b>Long walk-in.</b> Dressed heavier for a longer, damper sit than the reading alone would suggest.'});
-  else if(Math.abs(f-feels)>=4) flags.unshift({kind:'info',ic:'\uD83E\uDDE5',txt:'<b>Dressing your core for ~'+f+'\u00B0.</b> Your windproof insulation shrugs off most of the wind \u2014 it is exposed skin that feels the '+feels+'\u00B0.'});
-  if(windy) flags.unshift({kind:'warn',ic:'\uD83C\uDF2C\uFE0F',txt:'<b>Gusts to '+gust+' mph.</b> Feels-like already bakes the wind in \u2014 lead with your windproof piece.'});
-  if(wet) flags.unshift({kind:'warn',ic:'\uD83C\uDF27\uFE0F',txt:(f>=75?'<b>Wet ('+pp+'% / '+pin.toFixed(2)+'").</b> Too warm to layer up \u2014 you\'ll just take the rain.':'<b>Wet window ('+pp+'% / '+pin.toFixed(2)+'").</b> Your waterproof layer leads \u2014 the loadout matches it to the temperature.')});
-  // --- removed-piece filter: drop any slot item that resolves to a deleted built-in ---
-  if(removedMem.length){
-    // resolve against the FULL catalog (incl. removed) - catName() excludes removed, so it can't self-detect
-    var resolveFull=function(txt){ var base=String(txt).toLowerCase().split(' + ')[0].trim();
-      for(var i=0;i<removedMem.length;i++){ var rn=removedMem[i].toLowerCase(); if(base===rn||base.indexOf(rn)>=0||rn.indexOf(base)>=0) return removedMem[i]; }
-      return null; };
-    slots.forEach(function(sl){
-      sl.items = sl.items.filter(function(it){
-        if(it.none) return true;                 // keep explanatory "none" lines
-        return !resolveFull(it.txt);              // drop items pointing at a removed piece
-      });
-      if(!sl.items.length){                       // slot emptied by removal -> honest note, never blank
-        sl.items = [ {txt:'you removed your '+sl.k.toLowerCase()+' piece \u2014 add one in the closet', none:true} ];
-      }
-    });
-  }
-  // --- supplement pass: surface OWNED custom (added) pieces that fit this slot/temp/mode as options ---
-  (function(){
-    var cust = customItems().map(withOverrides);
-    if(!cust.length) return;
-    cust.forEach(function(p){
-      if(isRemoved(p.name)) return;
-      if(p.disc && p.disc.indexOf(mode)<0) return;                 // wrong discipline
-      var sk = SLOT_FOR_CAT[p.cat]; if(!sk) return;                // no slot for this category
-      var tt = (sk==='Insul') ? insulF : f;
-      if(p.tmin!=null && (tt < p.tmin-6 || tt > p.tmax+6)) return; // out of its temp band (small tolerance)
-      var sl = slots.find(function(x){return x.k===sk;});
-      if(!sl){ slots.push({k:sk, items:[ I(p.name, (p.note||'added \u2014 fits here'), {opt:true, added:true}) ]}); return; }
-      var already = sl.items.some(function(it){ var cn=catName(it.txt); return cn===p.name || it.txt===p.name; });
-      if(already) return;
-      // if the slot is only an explanatory "none", replace it; otherwise add as an option
-      if(sl.items.length===1 && sl.items[0].none){ sl.items=[ I(p.name,(p.note||'added \u2014 your piece here'),{added:true}) ]; }
-      else sl.items.push( I(p.name,(p.note||'added \u2014 also fits'),{opt:true, added:true}) );
-    });
-  })();
-  // camo advisory (informational) - which KUIU pattern fits this region/hunt/season
-  var ca = camoAdvice(S.lat, S.lon, S.elev, mode, new Date());
-  if(ca){ notes.push('<b>Camo \u00b7 '+ca.pattern+'.</b> KUIU\u2019s '+ca.pattern+' fits here \u2014 '+ca.why+(ca.alt?'. ('+ca.alt+')':'')+'.'); }
-  return {slots, notes, flags, dress:f};
-}
-function deerKit(f,wet,windy,slot,I,none,notes,flags,opts){
-  const insulF=(opts&&opts.insulF!=null)?opts.insulF:f, carry=!!(opts&&opts.carry), active=!!(opts&&opts.active), act=(opts&&opts.act)||'light';
-  if(f>=80) slot('Base Top',[I('Tiburon Snap Shirt','solo \u2014 vented, nothing underneath'), I('120 Merino SS','or run this alone instead',{opt:true})]);
-  else if(f>=68) slot('Base Top',[I('Tiburon Snap Shirt','vented warm-weather top'), I('120 Merino SS','light tee underneath',{opt:true})]);
-  else if(f>=58) slot('Base Top',[I('Encounter LT shirt','quiet, tough \u2014 a step up on a bare merino at close range'), I('120 Merino LS','simpler alternative',{opt:true})]);
-  else if(f>=45) slot('Base Top',[I('Pro Merino 200 Zip-T','warmer single layer'), I('Encounter LT shirt','quiet alt \u2014 layer the Mid over it',{opt:true})]);
-  else if(f>=32) slot('Base Top',[I('Pro Merino 200 Zip-T'), I('Peloton 118','light second skin',{opt:true})]);
-  else slot('Base Top',[I('Vital PRO thermal top','warmest base')]);
-  if(f>=55) slot('Base Btm',[none('pants alone')]);
-  else if(f>=42) slot('Base Btm',[I('Encounter 200 Fleece Bottom','optional for a long sit',{opt:true})]);
-  else if(f>=28) slot('Base Btm',[I('Encounter 200 Fleece Bottom','fleece base under your pants')]);
-  else slot('Base Btm',[I('Vital PRO bottoms','insulated base \u2014 your warmest')]);
-  if(f>=55) slot('Mid',[none('none needed')]);
-  else if(f>=42) slot('Mid',[I('Peloton 200 Zip-T','add if breezy',{opt:true})]);
-  else slot('Mid',[I('Peloton 200 Zip-T')]);
-  if(carry){
-    if(wet) slot('Insul', insulF>=48 ? [none('mild & wet \u2014 base under the shell is plenty while you move')] : [I('Peloton 200 Zip-T','carry it \u2014 a fleece mid layers under your shell at stops (a Kenai would add more)')]);
-    else if(insulF>=48) slot('Insul',[none('dressed light to move \u2014 base is plenty; the soft shell blocks the wind')]);
-    else if(insulF>=35) slot('Insul',[I('Proximity jacket','carry it \u2014 pull on when you stop')]);
-    else if(insulF>=24) slot('Insul',[I('Super Down PRO jacket','carry it \u2014 pull on when you stop')]);
-    else slot('Insul',[I('Super Down Haven jacket','carry it \u2014 pull on when you stop')]);
-  }
-  else if(insulF>=58) slot('Insul',[none(wet?(f>=75?'base is enough \u2014 too warm to layer':'the shell handles it'):(insulF<64?'base is enough \u2014 a light soft shell is optional if it is breezy':'base is enough'))]);
-  else if(insulF>=48) slot('Insul',[none(wet?'the storm shell handles the wet':'no puffy needed \u2014 a light soft shell is your outer')]);
-  else if(wet) slot('Insul', insulF>=42 ? [none('your fleece mid layers under the shell \u2014 a mid-layer insulated jacket (Kenai) would add real warmth here')] : [I('Kutana Gale Force jacket','waterproof insulated one-piece \u2014 no outer-fit layer for a shell to compress')]);
-  else if(insulF>=35) slot('Insul',[I('Proximity jacket','quiet synthetic \u2014 worn as your outer')]);
-  else if(insulF>=24) slot('Insul',[I('Super Down PRO jacket','cold sit \u00B7 down, save it for the sit')]);
-  else slot('Insul',[I('Super Down Haven jacket','frigid sit \u00B7 quiet down')]);
-  if(f>=75) slot('Shell',[none(wet?'too hot \u2014 you\'ll take the rain':'dry \u2014 skip it')]);
-  else if(wet && f<42 && !active) slot('Shell',[none('the Gale Force jacket is your shell \u2014 already waterproof')]);
-  else if(wet) slot('Shell',[I('Kutana Storm Shell','lighter & packable \u2014 better for the stand'), I('HD Flex Storm Shell','your waterfowl shell; heavier but bombproof',{opt:true})]);
-  else if(!active && f>=52 && f<64) slot('Shell', windy?[I('Guide DCS jacket','soft-shell wind block'), I('Rubicon soft shell','lighter option',{opt:true})] : [I('Guide DCS jacket','light soft-shell outer for the sit',{opt:true})]);
-  else if(!active && f>=48 && f<52) slot('Shell', windy?[I('Axis Hybrid Hooded jacket','quiet fleece-backed soft shell \u2014 blocks the wind over your base'), I('Guide DCS jacket','lighter option',{opt:true})] : [I('Axis Hybrid Hooded jacket','quiet fleece-backed soft shell over your base'), I('Guide DCS jacket','lighter option',{opt:true})]);
-  else if(!active && f>=40 && f<48) slot('Shell',[none('your insulation jacket is the outer \u2014 no soft shell over it (it would compress the loft)')]);
-  else if(active && f<48) slot('Shell',[I('Axis Hybrid Hooded jacket','quiet + warm on the move \u2014 vent the pit zips when you heat up'), I('Guide DCS jacket','lighter option',{opt:true})]);
-  else if(active && f<62) slot('Shell', windy?[I('Guide DCS jacket','soft-shell wind block'), I('Rubicon soft shell','lighter option',{opt:true})] : [I('Guide DCS jacket','soft-shell wind block \u2014 vent when you heat up',{opt:true})]);
-  else slot('Shell',[none('dry \u2014 skip it')]);
-  const legs=[];
-  if(f>=68) legs.push(I('Tiburon pant','lightweight & vented \u2014 best in the heat'));
-  else if(f>=(active?40:52)) legs.push(I('Attack pant', active?'vented \u2014 good on the move':'mild-day all-rounder'));
-  else if(f>=28 && !(wet && f<35)) legs.push(I('Encounter pant','quiet soft-shell stand pant \u2014 fleece base goes under it'));
-  else legs.push(I('Kutana Gale Force pant','frigid / cold-wet \u2014 waterproof insulated'));
-  if(wet && f>=35 && f<75) legs.push(I('Kutana Storm Shell pant','waterproof over the top'));
-  slot('Legs',legs);
-  if(f>=58) slot('Head',[I('Pro Hat - Orange','blaze cap - visibility during gun season')]);
-  else if(f>=45) slot('Head',[ windy?I('Kenai beanie + neck gaiter','wind'):I('Kenai beanie',null,{opt:true}) ]);
-  else if(f>=33) slot('Head',[ windy?I('Kenai beanie + neck gaiter','wind'):I('Kenai beanie') ]);
-  else if(f>=24) slot('Head',[I('Proximity beanie + neck gaiter')]);
-  else slot('Head',[I('Proximity beanie + neck gaiter','warmest owned combo')]);
-  if(f>=72) slot('Hands',[none('bare hands \u2014 too warm')]);
-  else if(f>=58) slot('Hands',[I('Precision glove',null,{opt:true})]);
-  else if(wet) slot('Hands',[ f>=32 ? I('Yukon glove','waterproof') : I('Northstar glove','waterproof, warm') ]);
-  else if(f>=45) slot('Hands',[I('Precision glove')]);
-  else if(f>=26) slot('Hands',[I('Kenai glove')]);
-  else slot('Hands',[I('Northstar glove','warmest')]);
-  if(f>=48) slot('Feet', (active&&!wet)?[I('Ankle mud boot','rubber = scent control at the stand'), I('Danner lace-up boots','better for covering ground',{opt:true}), I('ULTRA Merino Crew Sock','base sock')]:[I('Ankle mud boot'), I('ULTRA Merino Crew Sock','base sock')]);
-  else slot('Feet',[I('HD mud boot', f<35?'heavy wool sock / boot blanket for long sits':'taller, warmer'), I('ULTRA Merino Crew Sock','base sock')]);
-  slot('Vest',[I('Blaze Orange Vest','over everything \u2014 required during gun season')]);
-  if(f>=80) notes.push(active?'Hot and moving \u2014 Tiburon solo, hydrate hard, watch for ticks and snakes.':'Hot sit \u2014 the Tiburon runs solo; nothing underneath. Hydrate and watch for ticks and snakes.');
-  else if(f>=68) notes.push(active?'Warm and on the move \u2014 the Tiburon breathes well; watch for ticks and snakes this early and keep water handy.':'Hot sit \u2014 the Tiburon vents and dries fast. A light merino tee underneath helps, and watch for ticks and snakes this early.');
-  if(active) notes.push('Still-hunt loadout \u2014 dressed to move without soaking out. Your insulation rides in the pack and goes on when you stop to watch, not while you are walking.');
-  else if(act==='medium') notes.push('Long walk-in \u2014 runs a few degrees warmer than a short-walk sit because you arrive damp and stay out longer. Hike in with the outer carried, then layer up once you are on stand.');
-  else if(f<48) notes.push('Dress for the sit. Walk in with the puffy off, then layer up once you are settled and cooling.');
-  if(f<35 && wet && !active) notes.push('Cold and wet flips the plan \u2014 down loses loft when soaked, so the waterproof, synthetic Gale Force jacket + pant become the outer and no separate rain shell is needed.');
-  if(f<52 && !active) notes.push('Quiet pieces first. The down tops (PRO / Haven) rule dry cold; the Gale Force jacket + pant own the wet but are a loud hardshell \u2014 pull the outer on once you are settled, not on the walk in.');
-}
-function uplandKit(f,wet,windy,slot,I,none,notes,flags){
-  if(f>=55) slot('Base Top',[I('Upland shirt','breathable')]);
-  else if(f>=40) slot('Base Top',[I('120 Merino LS'), I('Tiburon Snap Shirt','over top')]);
-  else if(f>=28) slot('Base Top',[I('Pro Merino 200 Zip-T')]);
-  else slot('Base Top',[I('Pro Merino 200 Zip-T'), I('Peloton 118','second skin')]);
-  if(f<20) slot('Base Btm',[I('Vital PRO bottoms','warmest \u2014 only for truly frigid walks',{opt:true})]);
-  else if(f<35) slot('Base Btm',[I('Encounter 200 Fleece Bottom','breathes while you move',{opt:true})]);
-  else slot('Base Btm',[none('pants alone')]);
-  if(f>=40) slot('Mid',[none('you will cook \u2014 skip it')]);
-  else slot('Mid',[I('Peloton 200 Zip-T','start cool \u2014 shed as you warm',{opt:true})]);
-  if(f>=45) slot('Insul',[none('not while moving')]);
-  else if(!wet) slot('Insul',[I('Proximity jacket','carry it \u2014 pull on as your outer at glassing breaks',{opt:true})]);
-  else slot('Insul',[none('wet \u2014 fleece under the packable shell; a mid-layer insulated jacket (Kenai) is the cold-wet-break gap')]);
-  if(f>=85) slot('Shell',[none(wet?'too warm \u2014 take the rain':'none')]);
-  else if(wet) slot('Shell',[I('Kutana Storm Shell','packable \u2014 stuff it when it quits')]);
-  else if(f<50) slot('Shell',[I('Guide DCS jacket','soft-shell wind block \u2014 vent when hot',{opt:true}), I('Rubicon soft shell','lighter option',{opt:true})]);
-  else if(windy) slot('Shell',[I('Guide DCS jacket','wind block \u2014 for exposed stretches',{opt:true})]);
-  else slot('Shell',[none('none')]);
-  slot('Vest',[I('Upland Field Vest','game bag, shell loops, 2 water bottles')]);
-  const legs=[I('Pro Brush pant','brush protection')];
-  slot('Legs',legs);
-  if(f>=42) slot('Head',[I('Pro Hat - Valo')]); else if(f>=27) slot('Head',[I('Kenai beanie')]); else slot('Head',[I('Proximity beanie','warmer for the cold')]);
-  if(f>=40) slot('Hands',[I('Precision glove','trigger dexterity',{opt:true})]); else if(f>=28) slot('Hands',[I('Yukon glove')]); else if(f>=20) slot('Hands',[I('Kenai glove','warmer, still dexterous')]); else slot('Hands',[I('Northstar glove','warmest')]);
-  slot('Feet',[I('Danner lace-up boots','built for miles'), I('Ankle mud boot','swap in for wet ground, short walks',{opt:true}), I('ULTRA Merino Crew Sock','base sock')]);
-  notes.push('You generate heat walking \u2014 dress cool and start a touch cold. You will warm up in the first hundred yards.');
-  notes.push('Brush pants earn their keep busting cover; save the soft shell for wind and glassing.');
-  flags.push({kind:'warn',ic:'\uD83D\uDFE7',txt:'<b>Blaze orange.</b> Your Upland Field Vest carries the load \u2014 run the blaze colorway (or add a blaze hat) to meet your state visibility law.'});
-  flags.push({kind:'info',ic:'\uD83D\uDC62',txt:'Upland is a walking game. Your rubber mud boots are not built for distance \u2014 a dedicated upland/hiking boot is the real gap.'});
-}
-function waterfowlKit(f,wet,windy,slot,I,none,notes,flags,env){
-  var dry=(env==='dry');
-  if(f>=80) slot('Base Top',[I('Tiburon Snap Shirt','solo \u2014 vented, dries fast'), I('120 Merino SS','or run this alone instead',{opt:true})]);
-  else if(f>=68) slot('Base Top',[I('Tiburon Snap Shirt','vented warm-weather top'), I('120 Merino SS','lighter alternative',{opt:true})]);
-  else if(f>=50) slot('Base Top',[I('Pro Merino 200 Zip-T','warm when damp')]);
-  else if(f>=35) slot('Base Top',[I('Pro Merino 200 Zip-T'), I('Peloton 118','second skin',{opt:true})]);
-  else slot('Base Top',[I('Vital PRO thermal top','warmest base')]);
-  if(f>=48) slot('Base Btm',[none(dry?'pants alone':'waders alone')]);
-  else if(f>=35) slot('Base Btm',[I('Encounter 200 Fleece Bottom', dry?'fleece base under your pants':'fleece base under the waders')]);
-  else slot('Base Btm',[I('Vital PRO bottoms', dry?'insulated base under your pants \u2014 your warmest':'insulated base under the waders \u2014 your warmest')]);
-  if(f>=48) slot('Mid',[none('none')]); else slot('Mid',[I('Peloton 200 Zip-T')]);
-  if(dry){
-    // DRY FIELD: soft shell leads dry; when wet, a waterproof shell leads and insulation must be a
-    // compressible mid UNDER it (the Proximity is an outer-fit wind jacket \u2014 it is the outer when dry,
-    // never layered under a shell). Below 30 the Gale Force is the waterproof insulated outer.
-    if(wet){
-      // rain shell is the outer -> insulation is a fleece mid that layers under it
-      if(f>=48) slot('Insul',[none('base is enough under the shell')]);
-      else if(f>=30) slot('Insul',[I('Peloton 200 Zip-T','fleece mid under the rain shell (a Kenai would add more warmth)')]);
-      else slot('Insul',[none('the Gale Force jacket is your insulated waterproof outer')]);
-      if(f>=75) slot('Shell',[none('too hot for a shell \u2014 take the rain')]);
-      else if(f<30) slot('Shell',[none('the Gale Force jacket is your waterproof outer this cold')]);
-      else slot('Shell',[I('HD Flex Storm Shell','rain moved in \u2014 waterproof outer over your layers'), I('Kutana Storm Shell','lighter option',{opt:true})]);
-    } else {
-      // dry -> soft shell leads; in the cold the Proximity (outer-fit) IS the outer, no shell over it
-      if(f>=48) slot('Insul',[none('base + fleece under the soft shell is enough')]);
-      else if(f>=30) slot('Insul',[I('Proximity jacket','quiet synthetic \u2014 worn as your outer for a cold dry sit')]);
-      else slot('Insul',[I('Kutana Gale Force jacket','warmest option this cold')]);
-      if(f>=75) slot('Shell',[none('too warm & dry \u2014 skip it')]);
-      else if(f>=62 && !windy) slot('Shell',[none('too warm & dry \u2014 a camo shirt + face net is enough')]);
-      else if(f>=48) slot('Shell',[I('Axis Hybrid Hooded jacket','quiet fleece-backed soft shell \u2014 your dry-field outer'), I('Guide DCS jacket','lighter option',{opt:true})]);
-      else if(f>=30) slot('Shell',[none('your insulation jacket is the outer \u2014 no soft shell over it (it would compress the loft)')]);
-      else slot('Shell',[none('the Gale Force jacket is your outer this cold')]);
-    }
-  } else {
-    if(f>=48) slot('Insul',[none('none needed')]);
-    else if(f>=30) slot('Insul',[none('layer under the shell \u2014 base + fleece do the work; the down jackets are outer-fit and would compress')]);
-    else slot('Insul',[I('Kutana Gale Force jacket','warmest option \u2014 bulkier over wader bibs, but the right call this cold')]);
-    if(f>=75) slot('Shell',[none(wet?'too hot for a shell \u2014 take the rain':'too warm & dry \u2014 skip it')]);
-    else if(f<30) slot('Shell',[none('the Gale Force jacket is your waterproof outer \u2014 no separate shell')]);
-    else if(f>=62 && !wet && !windy) slot('Shell',[none('too warm & dry \u2014 a camo shirt + face net is enough')]);
-    else slot('Shell',[I('HD Flex Storm Shell', wet?'waterproof outer \u2014 layer it over your base and fleece':(windy?'block the wind off the water':(f<42?'your outer \u2014 the fleece stack underneath pairs better with bibs than the parka':'your layered outer + concealment'))), I('Kutana Storm Shell','lighter option',{opt:true})]);
-  }
-  if(dry){
-    var wl=[];
-    if(f>=68) wl.push(I('Tiburon pant','lightweight & vented for the heat'));
-    else if(f>=52) wl.push(I('Attack pant','mild-day all-rounder'));
-    else if(f>=28) wl.push(I('Encounter pant','quiet soft-shell stand pant \u2014 fleece base goes under it'));
-    else wl.push(I('Kutana Gale Force pant','frigid \u2014 insulated & waterproof'));
-    if(wet && f>=35 && f<75) wl.push(I('Kutana Storm Shell pant','waterproof over the top if it rains',{opt:true}));
-    slot('Legs',wl);
-  } else {
-    slot('Legs',[I('PRO HD Flex Zip Wader','waterproof, for the marsh')]);
-  }
-  if(f>=55) slot('Head',[ windy?I('Pro Hat - Valo + gaiter + face net','wind off the water'):I('Pro Hat - Valo + face net','concealment') ]);
-  else if(f>=45) slot('Head',[ windy?I('Kenai beanie + gaiter + face net','wind off the water'):I('Pro Hat - Valo + face net','concealment') ]);
-  else slot('Head',[I('Proximity beanie + gaiter'), I('Face net','concealment',{opt:true})]);
-  if(f>=60) slot('Hands',[none('bare \u2014 too warm for gloves')]);
-  else if(f>=45) slot('Hands',[I('Yukon glove','waterproof, light',{opt:true})]);
-  else if(!wet) slot('Hands', f>=30 ? [I('Yukon glove','waterproof \u2014 the marsh soaks your hands even on a dry day'), I('Kenai glove','dry-only alt for calling dexterity',{opt:true})] : [I('Northstar glove','waterproof, warm')]);
-  else if(f>=32) slot('Hands',[I('Yukon glove','waterproof \u2014 light warmth')]);
-  else slot('Hands',[I('Northstar glove','waterproof and warm')]);
-  if(dry){
-    slot('Feet',[I('Danner lace-up boots','best on dry ground'), I('Ankle Mud Boot','swap in for puddles / mud',{opt:true}), I('ULTRA Merino Crew Sock','base sock')]);
-  } else {
-    slot('Feet',[I('Waders cover it','boot-foot'), I('ULTRA Merino Crew Sock','+ heavy sock if frigid')]);
-  }
-  notes.push(dry ? 'Dry-field setup \u2014 boots and pants, no waders. Watch for puddles and mud; the mud boot swaps in if the ground is wet. A soft shell blocks wind; the HD Flex only if rain moves in.' : 'The waders are your waterproofing \u2014 everything else layers underneath to the day.');
-  if(f>=68) notes.push('Hot early-season sit \u2014 go light and plan to get wet. Sun, bugs, and hydration matter more than layers today.');
-  if(f<52) notes.push('It is a static sit like deer: cold builds up sitting still, so layer for the coldest stretch, not the walk to the blind.');
-  if(f<48) flags.push({kind:'info',ic:'\uD83E\uDDCA',txt:'<b>Layering under the shell:</b> fleece (your Peloton) is the under-shell insulation \u2014 the down jackets are outer-fit and would compress. Base + fleece + HD Flex runs to about 30\u00B0 and pairs better with wader bibs; below 30\u00B0 the Gale Force takes over.'});
-}
-/* render loadout (with custom-gear integration) */
-const MODE_META = {
-  deer:{color:'var(--deer)', label:'DEER \u00B7 STAND'},
-  upland:{color:'var(--upland)', label:'UPLAND \u00B7 ON FOOT'},
-  waterfowl:{color:'var(--waterfowl)', label:'WATERFOWL \u00B7 BLIND'}
-};
-function customItems(){ return customMem; }
-function allGear(){ return OWNED.filter(function(x){return !isRemoved(x.name);}).map(function(x){return withOverrides(Object.assign({},x,{custom:false}));}).concat(customItems().map(function(x){return withOverrides(Object.assign({},x,{custom:true}));})); }
-function catName(txt){
-  // resolve a slot item's display text to a catalog entry name (or null if it is a non-gear label)
-  var base=String(txt).toLowerCase().split(' + ')[0].trim();
-  var alias={'rubicon soft shell':'Rubicon jacket','vital pro thermal top':'Vital PRO top'};
-  if(alias[base]) return alias[base];
-  var gear=allGear();
-  // exact (normalized) first
-  for(var i=0;i<gear.length;i++){ if(gear[i].name.toLowerCase()===base) return gear[i].name; }
-  // substring either direction
-  for(var j=0;j<gear.length;j++){ var gn=gear[j].name.toLowerCase(); if(base.indexOf(gn)>=0||gn.indexOf(base)>=0) return gear[j].name; }
-  return null; // non-gear label (ball cap, face net, waders cover it, none)
-}
-function isPacked(name){ return tripSet.indexOf(name)>=0; }
-function closestPacked(catalogName, dressF, force){
-  // find a packed item in the same category, nearest by temp-range midpoint to dressF.
-  // force=true (essential slots): always return nearest packed piece + how far off it runs.
-  var gear=allGear(); var ref=null;
-  for(var i=0;i<gear.length;i++){ if(gear[i].name===catalogName){ ref=gear[i]; break; } }
-  if(!ref) return null;
-  var pool=gear.filter(function(g){ return g.cat===ref.cat && isPacked(g.name) && g.tmin!=null; });
-  if(!pool.length) return null;
-  pool.sort(function(a,b){ return Math.abs((a.tmin+a.tmax)/2-dressF)-Math.abs((b.tmin+b.tmax)/2-dressF); });
-  var c=pool[0];
-  var off = dressF>c.tmax ? Math.round(dressF-c.tmax) : (dressF<c.tmin ? Math.round(dressF-c.tmin) : 0);
-  if(!force && (dressF < c.tmin-12 || dressF > c.tmax+12)) return null;
-  return {name:c.name, off:off};  // off: + = too warm for it, - = too cold, 0 = in range
-}
-// slots you will always be wearing something in - never allow an empty/GAP here
-var ESSENTIAL_SLOTS={'Base Top':1,'Legs':1};
-function offNote(off){
-  if(off===0) return 'closest you packed';
-  var a=Math.abs(off);
-  return off>0 ? ('closest you packed \u2014 runs ~'+a+'\u00B0 warm') : ('closest you packed \u2014 ~'+a+'\u00B0 light for this');
-}
-function applyTrip(rec){
-  if(!tripOn) return;
-  var dressF=rec.dress;
-  var borrowedMid=null;   // the mid piece pulled up to serve as Base Top, if any
-  // Waterfowl-without-waders: if you packed boots but no waders, you're hunting dry ground (field,
-  // dry blind, pass shoot). Rewrite the wader-assuming slots to run boots + pants instead.
-  if(S.mode==='waterfowl' && !anyPackedInCat('wader') && anyPackedInCat('boots')){
-    var boot=closestPacked('Ankle Mud Boot', dressF, true);
-    rec.slots.forEach(function(sl){
-      if(sl.k==='Legs'){
-        // drop the wader; the loop below will fill Legs from packed pants (or gap honestly if none)
-        sl.items=[{txt:'PRO HD Flex Zip Wader', sub:'', _dropWader:true}];
-      } else if(sl.k==='Feet'){
-        if(boot) sl.items=[{txt:boot.name, sub:'no waders packed \u2014 boots on dry ground'}, {txt:'ULTRA Merino Crew Sock', sub:'base sock'}];
-      } else if(sl.k==='Base Btm'){
-        // rephrase 'under the waders' language to 'under your pants'
-        sl.items=sl.items.map(function(it){ if(it.sub) it.sub=it.sub.replace(/under the waders/i,'under your pants'); return it; });
-      }
-    });
-    var wn=rec.notes.indexOf('The waders are your waterproofing \u2014 everything else layers underneath to the day.');
-    if(wn>=0) rec.notes[wn]='No waders packed \u2014 running boots on dry ground. Everything else layers to the day; you have no waterproof leg layer, so stay out of standing water.';
-  }
-  rec.slots.forEach(function(sl){
-    var essential=!!ESSENTIAL_SLOTS[sl.k];
-    var out=[]; var anyReal=false; var anyKept=false;
-    sl.items.forEach(function(it){
-      if(it.none){ out.push(it); return; }
-      if(it._dropWader){
-        // waterfowl-no-waders: fill Legs from a packed PANT, else honest gap
-        var pant=firstPackedForSlot('Legs'); // pant or wader; wader already ruled out
-        if(pant){ out.push({txt:pant, sub:'no waders \u2014 pants on dry ground'}); anyReal=true; anyKept=true; }
-        else { anyReal=true; }
-        return;
-      }
-      var cn=catName(it.txt);
-      if(cn===null){ out.push(it); return; }          // non-gear label: always available
-      anyReal=true;
-      if(isPacked(cn)){ out.push(it); anyKept=true; return; }  // packed: keep as-is
-      var alt=closestPacked(cn, dressF, essential); // essential slots force a pick
-      if(alt){
-        var dup=out.some(function(x){ return x.txt===alt.name; });
-        if(!dup){ out.push(Object.assign({},it,{txt:alt.name, sub:offNote(alt.off), custom:false, opt:false, gap:false})); anyKept=true; }
-      }
-    });
-    var seen={}; out=out.filter(function(x){ if(x.none||x.gap) return true; if(seen[x.txt]) return false; seen[x.txt]=1; return true; });
-    var hasLabel=out.some(function(x){ return !x.none && !x.gap; });
-    if(essential && !anyKept){
-      // essential slot with nothing matched even by force -> grab ANY packed piece of that slot's category
-      var any=firstPackedForSlot(sl.k);
-      if(any){ out=[{txt:any, sub:'only option you packed'}]; anyKept=true; }
-      else {
-        // torso rule: a Base Top can be covered by a packed Mid, and a Mid by a packed base/shirt.
-        var cover = (sl.k==='Base Top') ? firstPackedForSlot('Mid') : null;
-        if(cover){ out=[{txt:cover, sub:'your only packed top \u2014 wear it next to skin'}]; anyKept=true; borrowedMid=cover; }
-        else {
-          var needMsg = sl.k==='Legs' ? 'nothing packed \u2014 you need waders or pants'
-                      : sl.k==='Base Top' ? 'nothing packed \u2014 you need a top'
-                      : 'nothing packed \u2014 you need this';
-          out=[{txt:needMsg, gap:true}];
-        }
-      }
-    }
-    else if(anyReal && !anyKept && !hasLabel){ out=[{txt:'nothing packed for this', gap:true}]; }
-    else if(anyReal && !anyKept && hasLabel){ out.push({txt:'nothing else packed', gap:true}); }
-    else if(!out.length){ out=[{txt:'\u2014', none:true}]; }
-    // collapse the duplicate: if a mid was pulled up to cover Base Top, do not also show it as the Mid
-    if(sl.k==='Mid' && borrowedMid){
-      out=out.filter(function(x){ return x.txt!==borrowedMid; });
-      if(!out.some(function(x){ return !x.none; })) out=[{txt:'your top covers it', none:true}];
-    }
-    sl.items=out;
-  });
-}
-function anyPackedInCat(cat){
-  var gear=allGear();
-  for(var i=0;i<gear.length;i++){ if(gear[i].cat===cat && isPacked(gear[i].name)) return gear[i].name; }
-  return null;
-}
-// map a slot label to the catalog categories that fill it, and return the first packed such piece
-function firstPackedForSlot(slotK){
-  var map={'Base Top':['base','shirt'],'Base Btm':['base'],'Mid':['mid'],'Insul':['insulation'],'Shell':['shell','softshell'],'Legs':['pant','wader'],'Head':['headwear'],'Hands':['gloves'],'Feet':['boots'],'Vest':['accessory']};
-  var cats=map[slotK]||[]; var gear=allGear();
-  for(var i=0;i<gear.length;i++){ if(cats.indexOf(gear[i].cat)>=0 && isPacked(gear[i].name)) return gear[i].name; }
-  return null;
+  const span=(a,b)=>{ var out=hours.filter(h=>h.epoch>=a&&h.epoch<=b); return out.length?out:[nearest((a+b)/2)]; };
+  const spanFor=(day,key)=>{
+    if(key==='dawn') return [day.sunrise-HOUR, day.sunrise+2*HOUR];
+    if(key==='midday'){ var n=toEpoch(day.date+'T12:00',off); return [n-HOUR, n+HOUR]; }
+    if(key==='afternoon') return [day.sunrise+3*HOUR, day.sunset];
+    return [day.sunset-2.5*HOUR, day.sunset+0.5*HOUR];           // evening / last light
+  };
+  const pickIn=(hs,key)=>{
+    if(key==='afternoon') return hs.reduce((b,h)=>h.temp>b.temp?h:b,hs[0]);
+    if(key==='midday') return hs.reduce((b,h)=>Math.abs(h.epoch-(hs[0].epoch+HOUR))<Math.abs(b.epoch-(hs[0].epoch+HOUR))?h:b,hs[0]);
+    return hs.reduce((b,h)=>h.temp<b.temp?h:b,hs[0]);               // coldest hour
+  };
+  const build=(key)=>{
+    var di=0, sp=spanFor(days[0],key);
+    if(sp[1]<now && days[1]){ di=1; sp=spanFor(days[1],key); }    // already passed today -> tomorrow
+    var hs=span(sp[0],sp[1]); var h=pickIn(hs,key);
+    var pprob=Math.max.apply(null,hs.map(x=>x.pprob)), precipIn=hs.reduce((a,x)=>a+x.precip,0), gust=Math.max.apply(null,hs.map(x=>x.gust));
+    var windAvg=hs.reduce((a,x)=>a+x.wind,0)/hs.length;
+    return { tempF:h.temp, feels:h.feels, windMph:Math.max(h.wind, windAvg), gustMph:Math.max(gust,h.gust), pprob:pprob, precipIn:precipIn,
+             code:h.code, sun:sunFor(h.code,key), local:h.local, dayLabel: di===0?'Today':'Tomorrow', key:key };
+  };
+  return { dawn:build('dawn'), midday:build('midday'), afternoon:build('afternoon'), evening:build('evening') };
 }
 function activeWx(){
   if(S.manual.on){
     var t=Math.round(S.manual.temp), wnd=Math.round(S.manual.wind);
-    return {temp:t, feels:t, wind:wnd, gust:wnd>0?wnd+5:0, pprob:S.manual.wet?80:0, precip:S.manual.wet?0.1:0, code:S.manual.wet?61:(t>=60?1:2), dayLabel:'Manual', local:null, manual:true};
+    var code = S.manual.wet?61:(S.manual.sky===2?0:(S.manual.sky===1?2:3));
+    return {tempF:t, feels:t, windMph:wnd, gustMph:wnd>0?wnd+5:0, pprob:S.manual.wet?80:0, precipIn:S.manual.wet?0.1:0, code:code, sun:S.manual.wet?0:S.manual.sky, dayLabel:'Manual', local:null, manual:true};
   }
   return S.windows ? S.windows[S.win] : null;
 }
+
+/* ---- KUIU camo advisory (informational; limited to the patterns the user owns) ---- */
+function regionArchetype(lat, lon, elevM){
+  if(lat==null||lon==null) return null;
+  var elevFt = (typeof elevM==='number') ? elevM*3.28084 : null;
+  if(elevFt!=null && elevFt>=6500 && lon < -102) return 'alpine';
+  if(lon < -102 && lat >= 31 && lat <= 42 && lon >= -118) return 'arid_west';
+  if(lon < -110) return 'west_open';
+  if(lon >= -104 && lon < -95 && lat >= 33) return 'plains';
+  if(lat < 36 && lon >= -104) return 'southeast';
+  return 'eastern_forest';
+}
+function vegState(month, lat){
+  var north = (lat!=null && lat >= 40);
+  if(month>=4 && month<=6) return 'green';
+  if(month>=7 && month<=8) return north?'green':'transitional';
+  if(month===9) return north?'transitional':'green';
+  if(month>=10 && month<=11) return north?'dormant':'transitional';
+  return 'dormant';
+}
+function idealPattern(region, veg, mode){
+  var open=(region==='alpine'||region==='west_open'), close=(mode==='deer');
+  if(region==='arid_west'||region==='plains') return {p:'Valo', why:'arid, low, light-toned cover'};
+  if(open && !close) return {p:'Vias', why:'open, broken country where breakup at distance matters most'};
+  if(veg==='green') return {p:'Verde', why:'green foliage is up'};
+  if(veg==='dormant') return {p:'Valo', why:'dormant, dried-out or leaf-off cover'};
+  return close ? {p:'Valo', why:'transitional cover trending dormant'} : {p:'Verde', why:'transitional cover with green still present'};
+}
+function ownedPatterns(gear){
+  var s={}; gear.forEach(function(g){ if(isCamoRelevant(g) && g.pattern && g.pattern!=='Blaze') s[g.pattern]=1; }); return Object.keys(s);
+}
+function camoNote(mode, gear){
+  var region=regionArchetype(S.lat,S.lon,S.elev); if(!region) return null;
+  var veg=vegState(new Date().getMonth()+1, S.lat);
+  var ideal=idealPattern(region, veg, mode);
+  var owned=ownedPatterns(gear); if(!owned.length) return null;
+  var main=owned.indexOf('Valo')>=0?'Valo':owned[0];
+  if(owned.indexOf(ideal.p)>=0) return '<b>Camo · '+esc(ideal.p)+'.</b> Your '+esc(ideal.p)+' fits here — '+esc(ideal.why)+'.';
+  return '<b>Camo · '+esc(main)+'.</b> '+esc(main)+' is what you own; it is a compromise here because the cover is '+esc(ideal.why)+'. Break up your outline with shadow and backdrop rather than counting on the pattern.';
+}
+
+/* ---- loadout render ---- */
 function toggleLocPanel(force){
   var p=document.getElementById('locPanel');
   var show=(force===undefined)?p.classList.contains('hidden'):force;
@@ -1103,6 +762,14 @@ function readManualInputs(){
   S.manual.temp=isFinite(t)?t:45;
   S.manual.wind=isFinite(wnd)?Math.max(0,wnd):0;
   S.manual.wet=document.getElementById('mWetIn').checked;
+  var sky=document.getElementById('mSkyIn'); S.manual.sky = sky ? clampNum(sky.value,0,2,1) : 1;
+}
+function useForecast(){
+  // a freshly loaded forecast always wins over a manual setting
+  S.manual.on=false;
+  [].forEach.call(document.querySelectorAll('#condMode button'),function(x){ x.setAttribute('aria-pressed', x.dataset.cond==='forecast'); });
+  document.getElementById('manualCond').classList.add('hidden');
+  document.getElementById('windowSeg').classList.remove('hidden');
 }
 function setCondMode(mode){
   if(mode==='forecast' && !S.windows){ toggleLocPanel(true); return; }
@@ -1121,65 +788,174 @@ function startManual(){
   [].forEach.call(document.querySelectorAll('#condMode button'),function(x){ x.setAttribute('aria-pressed', x.dataset.cond==='manual'); });
   render();
 }
+function rerender(){ if(S.windows||S.manual.on) render(); }
+function windWords(mph){ mph=Math.round(mph||0); if(mph<5) return 'calm air'; if(mph<12) return 'a light breeze'; if(mph<20) return 'a steady wind'; return 'a hard wind'; }
+function hoursWords(h){
+  if(h==null||!isFinite(h)) return null;
+  if(typeof FK!=='undefined' && typeof FK.fmtHours==='function'){ var f=FK.fmtHours(h); if(f) return f; }
+  if(h>=8) return 'all day';
+  var r=Math.round(h*2)/2; if(r<0.5) r=0.5;
+  if(r===0.5) return 'about half an hour';
+  if(r===1) return 'about an hour';
+  if(r===1.5) return 'about an hour and a half';
+  return 'about '+(r%1===0?r+' hours':Math.floor(r)+'½ hours');
+}
+function budgetLine(phase, w, mode){
+  var b=phase.budget||{}; var t=Math.round(w.tempF);
+  var moving=(phase.key==='walk'||phase.key==='move');
+  var s;
+  if(moving) s='Dressed to move at '+t+'° with '+windWords(w.windMph)+' — start a touch cold; you warm up in the first hundred yards.';
+  else if(phase.key==='stop') s='What goes on when you stop to watch — sized for '+t+'° and '+windWords(w.windMph)+'.';
+  else if(mode==='upland') s='Dressed for walking at '+t+'° with '+windWords(w.windMph)+'.';
+  else s='Dressed for a '+(b.sitHours||prefs.sitHours)+'-hour sit at '+t+'° with '+windWords(w.windMph)+'.';
+  if(b.short){
+    if(phase.key==='walk'){
+      // a walk-in to a stand has no stops: keep moving, the layers go on at the stand
+      s+=' Runs cold on the walk — keep moving; you\u2019ll warm up on stand once the layers go on.';
+    } else if(moving || mode==='upland'){
+      // comfort-hours is a seated idea; while moving the honest advice is to keep moving
+      s+=' Runs cold at this temperature — keep moving, and shorten the stops.';
+    } else if(phase.key==='stop'){
+      // a stop is 20-30 minutes, not a sit: no hours, no heat packs
+      s+=' Runs cold for a long stop — keep the stops short.';
+    } else if(b.warmer && b.warmer.torso && b.warmer.torso.length){
+      // the engine found a stack that gets the full sit: say so, never "warmest you own"
+      var hw2=hoursWords(b.hours);
+      s+=' Good for '+(hw2||'a shorter sit')+' — see the note above for the stack that gets the full sit.';
+    } else {
+      var hw=hoursWords(b.hours);
+      s+=' This is the warmest you own for this'+(hw?' — figure on '+hw:'')+', or add heat packs.';
+    }
+  }
+  return s;
+}
+function patChipFor(id, gear){
+  var g=null; for(var i=0;i<gear.length;i++){ if(gear[i].id===id){ g=gear[i]; break; } }
+  if(!g||!isCamoRelevant(g)||!g.pattern) return '';
+  return '<span class="lpat'+(g.pattern==='Blaze'?' blaze':'')+'">'+esc(g.pattern.toUpperCase())+'</span>';
+}
+function itemHTML(it, gear){
+  if(!it) return '';
+  if(it.gap) return '<div class="item gap"><div class="txt">'+esc(it.need||it.txt||'nothing packed for this')+'<span class="gtag">GAP</span></div></div>';
+  if(!it.id) return '<div class="item none"><div class="txt">'+esc(it.txt||it.name||'—')+'</div></div>';
+  var g=null; for(var i=0;i<gear.length;i++){ if(gear[i].id===it.id){ g=gear[i]; break; } }
+  var cls='item'+(g&&g.custom?' custom':'')+(it.opt?' opt':'');
+  var tag=(g&&g.custom)?'<span class="ctag">ADDED</span>':'';
+  var html='<div class="'+cls+'"><div class="txt">'+esc(it.name||(g&&g.name)||it.id)+tag+patChipFor(it.id,gear)+'</div>';
+  if(it.why) html+='<div class="sub">'+esc(it.why)+'</div>';
+  if(Array.isArray(it.alt)&&it.alt.length){
+    // alt.name may be a free phrase ("Kutana Storm Shell jacket over the Proximity jacket"); chip only when a real id is present
+    html+='<div class="sub alt">or '+it.alt.map(function(a){ return esc(a.name||a.id||'')+(a.id?patChipFor(a.id,gear):'')+(a.why?' — '+esc(a.why):''); }).join(' · ')+'</div>';
+  }
+  return html+'</div>';
+}
+function slotRow(label, items, gear){
+  if(!items||!items.length) return '';
+  return '<div class="slot"><div class="sk">'+esc(label)+'</div><div class="items">'+items.map(function(it){ return itemHTML(it,gear); }).join('')+'</div></div>';
+}
+// role labels come from the engine at render time (FK.ROLE_LABEL), with a local fallback for safety
+function roleLabel(role){
+  var L=(typeof FK!=='undefined' && FK && FK.ROLE_LABEL) ? FK.ROLE_LABEL : null;
+  if(L && L[role]) return L[role];
+  return {base:'Base',mid:'Mid',insul:'Insul',outer:'Outer',shell:'Shell',pant:'Pant',overpant:'Over',wader:'Wader'}[role] || role || 'Torso';
+}
+function phaseHTML(phase, w, mode, gear, idx, total){
+  var html='<div class="phase">';
+  if(total>1) html+='<div class="phase-h"><span class="t">'+esc(phase.label||phase.key)+'</span><span class="c mono">'+(idx+1)+' / '+total+'</span></div>';
+  html+='<div class="budget">'+esc(budgetLine(phase,w,mode))+'</div>';
+  var torso=phase.torso||[];
+  if(!torso.length) html+=slotRow('Torso',[{gap:true,need:'nothing packed — you need a top'}],gear);
+  torso.forEach(function(it){ html+=slotRow(it.tag||roleLabel(it.role),[it],gear); });
+  var legs=phase.legs||[];
+  if(!legs.length) html+=slotRow('Legs',[{gap:true,need:'nothing packed — you need pants or waders'}],gear);
+  legs.forEach(function(it,i){ var lab=(it.role==='base')?'Base btm':(it.role==='overpant'?'Over pant':(it.role==='wader'?'Waders':'Pant')); html+=slotRow(i===0?('Legs · '+lab):lab,[it],gear); });
+  html+=slotRow('Head',phase.head,gear);
+  html+=slotRow('Neck',phase.neck,gear);
+  html+=slotRow('Hands',phase.hands,gear);
+  html+=slotRow('Feet',phase.feet,gear);
+  html+=slotRow('Vest',phase.vest,gear);
+  if(phase.carry&&phase.carry.length) html+=slotRow('Carry',phase.carry,gear);
+  return html+'</div>';
+}
 function render(){
   document.documentElement.style.setProperty('--mode', MODE_META[S.mode].color);
   const isDeer=S.mode==='deer', aS=document.getElementById('actSeg'), aC=document.getElementById('actCap');
   if(aS){ aS.hidden=!isDeer; [].forEach.call(aS.querySelectorAll('button'),x=>x.setAttribute('aria-pressed', x.dataset.act===S.act)); }
-  if(aC){ aC.hidden=!isDeer; aC.textContent = S.act==='high'?'still-hunt \u00b7 moving with sits' : S.act==='medium'?'mile-plus walk in \u00b7 then sit' : 'short walk in \u00b7 then sit'; }
+  if(aC){ aC.hidden=!isDeer; aC.textContent = S.act==='high'?'still-hunt · moving with sits' : S.act==='medium'?'mile-plus walk in · then sit' : 'short walk in · then sit'; }
   const isWf=S.mode==='waterfowl', wS=document.getElementById('wfSeg'), wC=document.getElementById('wfCap');
   if(wS){ wS.hidden=!isWf; [].forEach.call(wS.querySelectorAll('button'),x=>x.setAttribute('aria-pressed', x.dataset.wf===S.wfEnv)); }
-  if(wC){ wC.hidden=!isWf; wC.textContent = S.wfEnv==='dry' ? 'boots \u00b7 dry blind / field' : 'waders \u00b7 water & mud'; }
+  if(wC){ wC.hidden=!isWf; wC.textContent = S.wfEnv==='dry' ? 'boots · dry blind / field' : 'waders · water & mud'; }
   const w=activeWx();
-  if(!w){ return; }   // no forecast loaded yet and not in manual mode - nothing to paint, don't crash
-  const f=Math.round(w.feels), tc=thermalColor(w.feels);
+  if(!w){ return; }
+  const t=Math.round(w.tempF), tc=thermalColor(w.tempF);
   document.documentElement.style.setProperty('--thermal', tc);
   const wxr=wx(w.code);
-  document.getElementById('feelsBig').textContent=f;
-  document.getElementById('feelsDeg').textContent='\u00B0';
-  document.getElementById('wxText').textContent=wxr[0];
+  document.getElementById('feelsBig').textContent=t;
+  document.getElementById('feelsDeg').textContent='°';
+  document.getElementById('wxText').textContent=wxr[0]+(w.pprob>=40||w.precipIn>=0.02?' · wet':' · dry');
   document.getElementById('wxIcon').textContent=wxr[1];
-  document.getElementById('mActual').textContent=Math.round(w.temp)+'\u00B0';
-  document.getElementById('mWind').innerHTML=Math.round(w.wind)+'/'+Math.round(w.gust)+' <span style="font-size:.7em">mph</span>';
+  document.getElementById('mActual').textContent=Math.round(w.feels!=null?w.feels:w.tempF)+'°';
+  document.getElementById('mWind').innerHTML=Math.round(w.windMph)+'/'+Math.round(w.gustMph)+' <span style="font-size:.7em">mph</span>';
   document.getElementById('mPrecip').textContent=Math.round(w.pprob||0)+'%';
   document.getElementById('whenDay').textContent=w.dayLabel;
   document.getElementById('whenTime').textContent = w.local ? fmtTime(w.local) : 'you set it';
   document.getElementById('manifestMode').textContent=MODE_META[S.mode].label;
-  const rec=recommend(S.mode,w);
-  applyTrip(rec);
   const fl=document.getElementById('flags'); fl.innerHTML='';
-  rec.flags.forEach(x=>{ const d=document.createElement('div'); d.className='flag'+(x.kind==='info'?' info':''); d.innerHTML='<span class="fi">'+x.ic+'</span><span class="ft">'+x.txt+'</span>'; fl.appendChild(d); });
   const sl=document.getElementById('slots'); sl.innerHTML='';
-  rec.slots.forEach(s=>{
-    const row=document.createElement('div'); row.className='slot';
-    const items=s.items.map(it=>{
-      const cls=it.none?'item none':it.gap?'item gap':it.custom?'item custom':it.opt?'item opt':'item';
-      const tag=it.gap?'<span class="gtag">GAP</span>':it.custom?'<span class="ctag">ADDED</span>':'';
-      const pchip=(it.none||it.gap)?'':loadoutPatChip(it.txt);
-      const sub=it.sub?'<div class="sub">'+esc(it.sub)+'</div>':'';
-      return '<div class="'+cls+'"><div class="txt">'+esc(it.txt)+tag+pchip+'</div>'+sub+'</div>';
-    }).join('');
-    row.innerHTML='<div class="sk">'+s.k+'</div><div class="items">'+items+'</div>';
-    sl.appendChild(row);
-  });
   const nt=document.getElementById('notes'); nt.innerHTML='';
-  rec.notes.forEach(n=>{ const li=document.createElement('li'); li.textContent=n; nt.appendChild(li); });
+  if(!engineReady()){
+    sl.innerHTML='<div class="item gap" style="margin:12px 0 0 13px"><div class="txt">engine.js did not load — redeploy the whole folder<span class="gtag">GAP</span></div></div>';
+    return;
+  }
+  const gear=currentGear();
+  let rec;
+  try{
+    rec=FK.recommend({ mode:S.mode, act:S.act, wfEnv:S.wfEnv,
+      wx:{ tempF:w.tempF, windMph:w.windMph, gustMph:w.gustMph, pprob:w.pprob||0, precipIn:w.precipIn||0, code:w.code, sun:(w.sun==null?0:w.sun) },
+      sitHours:prefs.sitHours, blaze:prefs.blaze, gear:gear, packed:packedIdSet(gear) });
+  }catch(e){
+    sl.innerHTML='<div class="item gap" style="margin:12px 0 0 13px"><div class="txt">loadout engine error: '+esc(e&&e.message||e)+'<span class="gtag">GAP</span></div></div>';
+    return;
+  }
+  (rec.flags||[]).forEach(x=>{ const d=document.createElement('div'); d.className='flag'+(x.kind==='info'?' info':''); d.innerHTML='<span class="fi" aria-hidden="true">'+esc(x.ic||'')+'</span><span class="ft">'+safeBold(x.txt)+'</span>'; fl.appendChild(d); });
+  const phases=rec.phases||[];
+  if(!phases.length){
+    // engine could not build an outfit (trip mode with an essential slot unpacked): show the gaps as GAP rows, never a blank card
+    var gl=(rec.gaps&&rec.gaps.length)?rec.gaps:['nothing packed for this'];
+    sl.innerHTML='<div class="phase">'+gl.map(function(g){ return slotRow(/torso|top/i.test(g)?'Torso':(/legs|pants|waders/i.test(g)?'Legs':'Gap'),[{gap:true,need:g}],gear); }).join('')+'</div>';
+  } else {
+    sl.innerHTML = phases.map(function(p,i){ return phaseHTML(p,w,S.mode,gear,i,phases.length); }).join('');
+  }
+  (rec.gaps||[]).forEach(g=>{ const li=document.createElement('li'); li.className='gapnote'; li.textContent=g; nt.appendChild(li); });
+  (rec.notes||[]).forEach(n=>{ const li=document.createElement('li'); li.textContent=n; nt.appendChild(li); });
+  var cn=camoNote(S.mode, gear); if(cn){ const li=document.createElement('li'); li.innerHTML=cn; nt.appendChild(li); }
   const mf=document.getElementById('manifest'); mf.classList.remove('fade'); void mf.offsetWidth; mf.classList.add('fade');
 }
 
-/* closet rendering */
+/* ---- closet ---- */
+function isKuiuItem(it){ return !/danner/i.test(it.name); }
+function isCamoRelevant(it){ return !(it.slot==='sock' || it.pattern==='Universal' || it.pattern==='Solid' || !it.pattern || (it.slot==='torso' && it.fit==='skin' && it.pos && it.pos.indexOf('outer')<0 && it.pos.indexOf('mid')<0) || (it.slot==='legs' && it.pos && it.pos.indexOf('base')>=0)); }
 function badgeHTML(it){
   let b='';
-  if(it.pattern && it.pattern!=='Universal') b+='<span class="b pat'+(it.pattern==='Blaze'?' blaze':'')+'">'+esc(it.pattern.toUpperCase())+'</span>';
-  if(it.q) b+='<span class="b q">QUIET</span>';
-  if(it.wp) b+='<span class="b w">WATERPROOF</span>';
-  else if(it.w) b+='<span class="b w">WIND</span>';
+  if(it.pattern && it.pattern!=='Universal' && isCamoRelevant(it)) b+='<span class="b pat'+(it.pattern==='Blaze'?' blaze':'')+'">'+esc(it.pattern.toUpperCase())+'</span>';
+  if(it.quiet>=8) b+='<span class="b q">QUIET</span>';
+  if(it.wp===2) b+='<span class="b w">WATERPROOF</span>';
+  else if(it.wind===2) b+='<span class="b w">WINDPROOF</span>';
   return b?'<span class="badges">'+b+'</span>':'';
+}
+function roleWords(it){
+  var pos=(it.pos||[]).slice();
+  var m={base:'next to skin',mid:'mid layer',insul:'insulation',outer:'outer layer',pant:'pant',overpant:'over-pant',wader:'waders'};
+  var s=pos.map(function(p){return m[p]||p;}).join(' or ');
+  if(it.combo) s+=' (insulated + waterproof in one)';
+  if(it.terminal) s+=' — nothing goes over it';
+  if(it.overInsul) s+=' — sized to go over an insulated jacket';
+  return s||'—';
 }
 function renderCloset(){
   const wrap=document.getElementById('catalog'); wrap.innerHTML='';
-  var eb=document.getElementById('editBanner');
-  if(eb){ eb.hidden=!editMode; }
-  const all=OWNED.filter(function(x){return !isRemoved(x.name);}).map(x=>withOverrides(Object.assign({},x,{custom:false}))).concat(customItems().map(x=>withOverrides(Object.assign({},x,{custom:true}))));
+  var eb=document.getElementById('editBanner'); if(eb){ eb.hidden=!editMode; }
+  const all=currentGear();
   if(editMode) wrap.classList.add('editing'); else wrap.classList.remove('editing');
   CAT_GROUPS.forEach(g=>{
     var seenN={}; const items=all.filter(function(x){ if(x.cat!==g[0]) return false; if(seenN[x.name]) return false; seenN[x.name]=1; return true; });
@@ -1189,38 +965,35 @@ function renderCloset(){
     items.forEach(it=>{
       try{
         const row=document.createElement('div'); row.className='gear';
-        const packed=isPacked(it.name);
+        const packed=tripSet.indexOf(it.name)>=0;
         if(tripOn){ row.classList.add('pickable'); row.classList.add(packed?'packed':'unpacked'); }
-        const range=(it.tmin!=null&&it.tmax!=null)?('<span class="grange">'+Math.round(it.tmin)+'\u2013'+Math.round(it.tmax)+'\u00B0</span>'):'';
+        const range=(it.tmin!=null&&it.tmax!=null)?('<span class="grange">'+bandText(it)+'</span>'):'';
         const added=it.custom?'<span class="added">ADDED</span>':'';
-        // edit mode shows a delete control on EVERY piece; two-tap (delete -> confirm) so it is deliberate
         const del=(editMode&&!tripOn)?'<button class="del" title="Delete" data-del="'+esc(it.name)+'" data-builtin="'+(it.custom?'0':'1')+'">Delete</button><button class="delc" data-delc="'+esc(it.name)+'" hidden>Sure? Delete</button>':'';
         const pick=tripOn?'<span class="pick"></span>':'';
-        const expandable=!tripOn;                       // tap-to-expand when not packing a trip
-        const chev=expandable?'<span class="chev">\u203A</span>':'';
+        const expandable=!tripOn;
+        const chev=expandable?'<span class="chev">›</span>':'';
         if(expandable) row.classList.add('expandable');
         row.innerHTML=pick+'<span class="gname">'+esc(it.name)+badgeHTML(it)+'</span>'+range+added+del+chev;
         if(tripOn){ row.setAttribute('data-pick', it.name); }
+        row.setAttribute('tabindex','0'); row.setAttribute('role','button');
         div.appendChild(row);
         if(expandable){
           const detail=document.createElement('div');
           detail.innerHTML=gearDetailHTML(it);
           const panel=detail.firstChild;
           div.appendChild(panel);
-          row.onclick=function(e){
-            if(e.target.closest('.del,.delc')) return;   // don't expand when hitting delete controls
-            var open=panel.classList.toggle('show'); row.classList.toggle('open', open);
-          };
+          var tog=function(e){ if(e.target.closest&&e.target.closest('.del,.delc')) return; var open=panel.classList.toggle('show'); row.classList.toggle('open', open); };
+          row.onclick=tog;
+          row.onkeydown=function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); tog(e); } };
         }
       }catch(e){ /* skip a malformed item rather than abort the whole closet */ }
     });
     wrap.appendChild(div);
   });
-  // two-tap delete: first tap reveals confirm, second tap deletes; tapping the first button again cancels
   wrap.querySelectorAll('[data-del]').forEach(function(b){
     b.onclick=function(e){ e.stopPropagation();
       var c=b.nextElementSibling; var showing=!c.hidden;
-      // reset any other open confirms
       wrap.querySelectorAll('.delc').forEach(function(x){ x.hidden=true; x.previousElementSibling.hidden=false; });
       if(showing){ c.hidden=true; b.hidden=false; } else { b.hidden=true; c.hidden=false; }
     };
@@ -1228,16 +1001,18 @@ function renderCloset(){
   wrap.querySelectorAll('[data-delc]').forEach(function(c){
     c.onclick=function(e){ e.stopPropagation(); deleteGear(c.getAttribute('data-delc'), c.previousElementSibling.getAttribute('data-builtin')==='1'); };
   });
-  if(tripOn){ wrap.querySelectorAll('[data-pick]').forEach(r=> r.onclick=()=>togglePacked(r.getAttribute('data-pick')) ); }
-  // edit-form: don't let taps inside the form collapse the card
+  if(tripOn){ wrap.querySelectorAll('[data-pick]').forEach(function(r){ r.onclick=function(){ togglePacked(r.getAttribute('data-pick')); }; r.onkeydown=function(e){ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); togglePacked(r.getAttribute('data-pick')); } }; }); }
   wrap.querySelectorAll('.gd-edit').forEach(function(fm){ fm.onclick=function(e){ e.stopPropagation(); }; });
-  wrap.querySelectorAll('[data-save]').forEach(function(btn){
-    btn.onclick=function(e){ e.stopPropagation(); saveGearEdit(btn.getAttribute('data-save'), btn.closest('.gd-edit')); };
-  });
-  wrap.querySelectorAll('[data-reset]').forEach(function(btn){
-    btn.onclick=function(e){ e.stopPropagation(); resetGearEdit(btn.getAttribute('data-reset')); };
-  });
+  wrap.querySelectorAll('[data-save]').forEach(function(btn){ btn.onclick=function(e){ e.stopPropagation(); saveGearEdit(btn.getAttribute('data-save'), btn.closest('.gd-edit')); }; });
+  wrap.querySelectorAll('[data-reset]').forEach(function(btn){ btn.onclick=function(e){ e.stopPropagation(); resetGearEdit(btn.getAttribute('data-reset')); }; });
   paintTripBar();
+}
+function bandText(it){
+  var lo=Math.round(it.tmin), hi=Math.round(it.tmax);
+  if(hi>=100 && lo<=-20) return 'any temp';
+  if(hi>=100) return lo+'°+';
+  if(lo<=-20) return 'to '+hi+'°';
+  return lo+'–'+hi+'°';
 }
 function saveGearEdit(name, formEl){
   if(!formEl) return;
@@ -1246,32 +1021,18 @@ function saveGearEdit(name, formEl){
   var mn=g('tmin'), mx=g('tmax'), pat=g('pattern'), url=g('url');
   if(mn!==''&&isFinite(+mn)) ov.tmin=+mn;
   if(mx!==''&&isFinite(+mx)) ov.tmax=+mx;
+  if(ov.tmin!=null && ov.tmax!=null && ov.tmin>ov.tmax){ var tmp=ov.tmin; ov.tmin=ov.tmax; ov.tmax=tmp; }
   if(pat!=='') ov.pattern=pat;
   if(url!=='') ov.url=url;
   if(Object.keys(ov).length) overridesMem[name]=ov; else delete overridesMem[name];
   lsSet('fk_overrides', overridesMem);
-  renderCloset(); if(S.windows||S.manual.on) render();
+  renderCloset(); rerender();
 }
 function resetGearEdit(name){
   delete overridesMem[name]; lsSet('fk_overrides', overridesMem);
-  renderCloset(); if(S.windows||S.manual.on) render();
+  renderCloset(); rerender();
 }
-function isKuiuItem(it){ return !/danner/i.test(it.name); }   // Danner is a 3rd-party brand, not KUIU
-function isCamoRelevant(it){ return !(it.cat==='base' || /sock/i.test(it.name) || it.pattern==='Universal'); } // base layers & socks are worn underneath - pattern is irrelevant
-function patternFor(name){ // effective pattern of an owned piece by name, for the loadout chip
-  var all=allGear(); for(var i=0;i<all.length;i++){ if(all[i].name===name){ return isCamoRelevant(all[i])?(all[i].pattern||null):null; } } return null;
-}
-function loadoutPatChip(name){ var p=patternFor(name); return p?'<span class="lpat'+(p==='Blaze'?' blaze':'')+'">'+esc(p.toUpperCase())+'</span>':''; }
-// Verified KUIU product-page URLs (confirmed from live KUIU result pages). Valo colorway to match his kit.
-// Anything not here falls back to a kuiu.com search. Slugs can rotate over time; the per-item link
-// override lets you correct any that drift.
-var KUIU_URLS = {
-  'Super Down PRO jacket':'https://www.kuiu.com/products/super-down-pro-hooded-jacket-valo-camouflage'
-};
-function kuiuProductURL(name){ return KUIU_URLS[name] || null; }
 function kuiuSearchURL(name){
-  // robust: KUIU product slugs rotate and 404, so link to a storefront search that always resolves.
-  // strip our app-only pattern/color suffixes (e.g. "Pro Hat - Valo" -> "Pro Hat") for a cleaner query.
   var q=String(name).replace(/\s*-\s*(Valo|Orange|Blaze).*/i,'').trim();
   return 'https://www.kuiu.com/search?q='+encodeURIComponent(q);
 }
@@ -1284,43 +1045,38 @@ function catLabel(cat){ for(var i=0;i<CAT_GROUPS.length;i++){ if(CAT_GROUPS[i][0
 var PATTERN_OPTS=['Valo','Verde','Vias','Blaze','Solid','Universal'];
 function patternSelect(cur){
   var opts=PATTERN_OPTS.slice();
-  if(cur && opts.indexOf(cur)<0) opts.unshift(cur);   // preserve a non-standard existing value
-  var html='<select data-ed="pattern"><option value="">\u2014 none \u2014</option>';
+  if(cur && opts.indexOf(cur)<0) opts.unshift(cur);
+  var html='<select data-ed="pattern"><option value="">— none —</option>';
   opts.forEach(function(o){ html+='<option value="'+esc(o)+'"'+(o===cur?' selected':'')+'>'+esc(o)+'</option>'; });
   return html+'</select>';
 }
 function gearDetailHTML(it){
   var rows='';
-  var camo = isCamoRelevant(it) ? it.pattern : null;   // base/socks: no camo pattern
-  var tags=[it.q?'Quiet':null,it.wp?'Waterproof':(it.w?'Wind-resistant':null),camo].filter(Boolean).join(' \u00b7 ');
+  var camo = isCamoRelevant(it) ? it.pattern : null;
+  var traits=[ it.quiet>=8?'Quiet':(it.quiet!=null&&it.quiet<=4?'Loud face':null), it.wp===2?'Waterproof':(it.wp===1?'Water-resistant':null), it.wind===2?'Windproof':(it.wind===1?'Wind-resistant':null), it.ins&&it.ins!=='none'?({down:'Down',syn:'Synthetic',fleece:'Fleece',merino:'Merino'}[it.ins]||it.ins):null, it.active?'Breathes on the move':null, camo ].filter(Boolean).join(' · ');
   rows+='<div class="gd-row"><span class="gd-k">Category</span><span>'+esc(catLabel(it.cat))+'</span></div>';
-  if(it.tmin!=null&&it.tmax!=null) rows+='<div class="gd-row"><span class="gd-k">Temp range</span><span>'+Math.round(it.tmin)+'\u2013'+Math.round(it.tmax)+'\u00B0F</span></div>';
+  rows+='<div class="gd-row"><span class="gd-k">Worn as</span><span>'+esc(roleWords(it))+'</span></div>';
+  if(it.tmin!=null&&it.tmax!=null) rows+='<div class="gd-row"><span class="gd-k">Used from</span><span>'+esc(bandText(it))+(it.edited?' <span class="gd-editedtag">EDITED</span>':'')+'</span></div>';
   rows+='<div class="gd-row"><span class="gd-k">Best for</span><span>'+esc(discLabels(it.disc))+'</span></div>';
-  if(tags) rows+='<div class="gd-row"><span class="gd-k">Traits</span><span>'+esc(tags)+'</span></div>';
-  var baseNote = isCamoRelevant(it) ? '' : '<div class="gd-note">Worn underneath \u2014 camo pattern doesn\u2019t apply.</div>';
+  if(traits) rows+='<div class="gd-row"><span class="gd-k">Traits</span><span>'+esc(traits)+'</span></div>';
+  var baseNote = isCamoRelevant(it) ? '' : '<div class="gd-note">Worn underneath — camo pattern doesn’t apply.</div>';
   var note=(it.note?'<div class="gd-note">'+esc(it.note)+'</div>':'')+baseNote;
-  var confirmed = isKuiuItem(it) ? kuiuProductURL(it.name) : null;
-  var linkURL = (typeof it.url==='string' && it.url.trim()) ? it.url.trim()
-              : (confirmed ? confirmed
-              : (isKuiuItem(it) ? kuiuSearchURL(it.name) : null));
-  var linkLabel = it.url ? 'Open your link \u2197' : (confirmed ? 'View on kuiu.com \u2197' : 'Search on kuiu.com \u2197');
+  var linkURL = (typeof it.url==='string' && it.url.trim()) ? it.url.trim() : (isKuiuItem(it) ? kuiuSearchURL(it.name) : null);
+  var linkLabel = it.url ? 'Open your link ↗' : 'Search on kuiu.com ↗';
   var link = linkURL
     ? '<a class="gd-link" href="'+esc(linkURL)+'" target="_blank" rel="noopener">'+linkLabel+'</a>'
-    : '<div class="gd-nonkuiu">Not a KUIU item \u2014 add your own link in edit mode.</div>';
-  // EDIT MODE: show an editable form (temp range, color/pattern, custom link)
+    : '<div class="gd-nonkuiu">Not a KUIU item — add your own link in edit mode.</div>';
   if(editMode){
-    var ov=overridesMem[it.name]||{};
-    var curMin=(it.tmin!=null?Math.round(it.tmin):'');
-    var curMax=(it.tmax!=null?Math.round(it.tmax):'');
-    var curPat=(it.pattern||'');
-    var curUrl=(typeof it.url==='string'?it.url:'');
+    var curMin=(it.tmin!=null?Math.round(it.tmin):''), curMax=(it.tmax!=null?Math.round(it.tmax):'');
+    var curPat=(it.pattern||''), curUrl=(typeof it.url==='string'?it.url:'');
     var edited = it.edited ? '<span class="gd-editedtag">EDITED</span>' : '';
     var form=''
       +'<div class="gd-edit" data-edname="'+esc(it.name)+'">'
-      +'<div class="gd-editrow"><label>Temp min \u00B0F<input type="number" data-ed="tmin" value="'+curMin+'"></label>'
-      +'<label>Temp max \u00B0F<input type="number" data-ed="tmax" value="'+curMax+'"></label></div>'
+      +'<div class="gd-editrow"><label>Use from °F<input type="number" data-ed="tmin" value="'+curMin+'"></label>'
+      +'<label>Up to °F<input type="number" data-ed="tmax" value="'+curMax+'"></label></div>'
+      +'<div class="gd-note" style="margin-top:0">The band says when the loadout may reach for this piece; how warm it is comes from its construction.</div>'
       +'<label class="gd-editfull">Color / pattern'+patternSelect(curPat)+'</label>'
-      +'<label class="gd-editfull">Your link (optional \u2014 overrides the kuiu.com search)<input type="url" data-ed="url" value="'+esc(curUrl)+'" placeholder="https://www.kuiu.com/products/\u2026"></label>'
+      +'<label class="gd-editfull">Your link (optional — overrides the kuiu.com search)<input type="url" data-ed="url" value="'+esc(curUrl)+'" placeholder="https://www.kuiu.com/products/…"></label>'
       +'<div class="gd-editbtns"><button class="btn sm" data-save="'+esc(it.name)+'">Save</button>'
       +'<button class="btn ghost sm" data-reset="'+esc(it.name)+'">Reset to default</button>'+edited+'</div>'
       +'</div>';
@@ -1328,30 +1084,29 @@ function gearDetailHTML(it){
   }
   return '<div class="gear-detail">'+rows+note+link+'</div>';
 }
-function packableNames(){ return allGear().map(function(g){return g.name;}); }
+function packableNames(){ return currentGear().map(function(g){return g.name;}); }
 function togglePacked(name){
   var i=tripSet.indexOf(name);
   if(i>=0) tripSet.splice(i,1); else tripSet.push(name);
-  lsSet('fk_trip_set',tripSet); renderCloset(); if(S.windows||S.manual.on) render();
+  lsSet('fk_trip_set',tripSet); renderCloset(); rerender();
 }
 function setTrip(on){
   tripOn=!!on; lsSet('fk_trip_on',tripOn);
-  // first time on with empty set -> default to everything packed (so it is not surprising/empty)
   if(tripOn && !tripSet.length){ tripSet=packableNames().slice(); lsSet('fk_trip_set',tripSet); }
-  renderCloset(); if(S.windows||S.manual.on) render();
+  renderCloset(); rerender();
 }
 function paintTripBar(){
   var tog=document.getElementById('tripToggle'); if(!tog) return;
   tog.setAttribute('aria-checked', tripOn?'true':'false');
   document.getElementById('tripActions').classList.toggle('hidden', !tripOn);
-  var total=packableNames().length, n=tripSet.filter(function(x){return packableNames().indexOf(x)>=0;}).length;
+  var names=packableNames(); var total=names.length, n=tripSet.filter(function(x){return names.indexOf(x)>=0;}).length;
   document.getElementById('tripHint').innerHTML = tripOn ? 'On &mdash; loadout uses only what you pack' : 'Off &mdash; loadout uses your whole closet';
   document.getElementById('tripCount').textContent = n+' / '+total+' packed';
-  var ta=document.getElementById('tripActive'), isLoadout=true;
+  var ta=document.getElementById('tripActive');
   if(ta){ ta.classList.toggle('hidden', !tripOn); document.getElementById('tripActiveCount').textContent = n; }
 }
 
-/* add-gear via Netlify function */
+/* ---- add gear via Netlify function ---- */
 function setAddStatus(html, kind){
   const el=document.getElementById('addStatus');
   el.className='add-status '+(kind||''); el.classList.remove('hidden'); el.innerHTML=html;
@@ -1361,44 +1116,134 @@ function gearErrHelp(err){
   if(/Failed to fetch|NetworkError|Load failed|Unexpected token/i.test(m) || location.protocol==='blob:' || location.protocol==='file:' || location.hostname==='')
     return 'Gear research runs on your deployed site. Add <code>ANTHROPIC_API_KEY</code> in Netlify and open the live URL &mdash; it will not work in this preview.';
   if(/ANTHROPIC_API_KEY|not set/i.test(m)) return 'Set <code>ANTHROPIC_API_KEY</code> in your Netlify site settings, then redeploy.';
-  if(/HTTP 40[45]/i.test(m)) return 'The gear-research function is not deployed &mdash; a 404 is a routing miss, <b>not</b> an API-key problem. Drag-and-drop deploys skip Netlify Functions, so deploy with the Netlify CLI (<code>netlify deploy --prod</code>) or Git &mdash; that bundles <code>anthropic.js</code>. Then confirm it appears under <b>Netlify &rarr; Functions</b>.';
+  if(/HTTP 40[45]/i.test(m)) return 'The gear-research function is not deployed &mdash; a 404 is a routing miss, <b>not</b> an API-key problem. Deploy with the Netlify CLI (<code>netlify deploy --prod</code>) or Git so <code>anthropic.js</code> is bundled, then confirm it under <b>Netlify &rarr; Functions</b>.';
+  if(/HTTP 403|origin/i.test(m)) return 'The function refused this origin. Set <code>FK_ALLOWED_ORIGIN</code> in Netlify to your site URL (or unset it).';
+  if(/HTTP 50[24]|timed? ?out/i.test(m)) return 'The research call ran past the function time limit. Try a more specific product name, or try again.';
   if(/model/i.test(m)) return 'Model error &mdash; set <code>CLAUDE_MODEL</code> in Netlify to a current model. ('+esc(m)+')';
   return 'Research failed: '+esc(m);
 }
-function clampNum(v,lo,hi,def){ v=Number(v); if(!isFinite(v)) return def; return Math.max(lo,Math.min(hi,v)); }
+const SLOTS=['torso','legs','head','neck','hands','feet','sock','vest','wader'];
+function pickSlot(raw){
+  var s=String(raw.slot||'').toLowerCase().trim(); if(SLOTS.indexOf(s)>=0) return s;
+  var c=String(raw.category||raw.cat||'').toLowerCase(), n=String(raw.name||'').toLowerCase(), t=c+' '+n;
+  if(/wader/.test(t)) return 'wader';
+  if(/sock/.test(t)) return 'sock';
+  if(/glove|mitt|glomitt/.test(t)) return 'hands';
+  if(/gaiter|balaclava|neck/.test(t)) return 'neck';
+  if(/beanie|hat|cap|hood\b/.test(t)) return 'head';
+  if(/boot|shoe/.test(t)) return 'feet';
+  if(/vest/.test(t)) return 'vest';
+  if(/pant|bib|trouser|bottom|legging|tight/.test(t)) return 'legs';
+  return 'torso';
+}
 function normalizeItem(raw, name){
-  const cats=['base','mid','insulation','softshell','shell','wader','pant','headwear','gloves','boots','accessory'];
-  let cat=(raw.category||raw.cat||'').toLowerCase().trim();
-  if(cats.indexOf(cat)<0){
-    if(/wader/.test(cat)) cat='wader'; else if(/pant|bib|trouser/.test(cat)) cat='pant';
-    else if(/shell|rain/.test(cat)) cat='shell'; else if(/insul|puff|down|parka|jacket/.test(cat)) cat='insulation';
-    else if(/glove|mitt/.test(cat)) cat='gloves'; else if(/beanie|hat|hood|cap|balaclava/.test(cat)) cat='headwear';
-    else if(/boot|shoe/.test(cat)) cat='boots'; else if(/fleece|soft/.test(cat)) cat='softshell'; else cat='base';
+  raw=raw||{};
+  const slot=pickSlot(raw);
+  let cat=String(raw.category||raw.cat||'').toLowerCase().trim();
+  const cats=CAT_GROUPS.map(function(g){return g[0];});
+  // the stated category wins over fabric guesses: a "synthetic" base layer is still a base layer
+  const isBaseCat=(cat==='base'||cat==='shirt'), isMidCat=(cat==='mid');
+  const insRaw=String(raw.insulation_type||raw.insulation||raw.ins||'').toLowerCase();
+  let ins=(function(){ if(/down/.test(insRaw)) return 'down'; if(/fleece|pile|grid/.test(insRaw)) return 'fleece'; if(/merino|wool/.test(insRaw)) return 'merino'; if(/syn|prima|3defx|thinsulate|poly/.test(insRaw)) return 'syn'; if(isMidCat) return 'fleece'; if(cat==='insulation') return 'syn'; return 'none'; })();
+  if(isBaseCat && (ins==='syn'||ins==='down')) ins = /merino|wool/.test(String(raw.name||name||'').toLowerCase()) ? 'merino' : 'syn';
+  const membrane=!!(raw.membrane!==undefined?raw.membrane:raw.waterproof);
+  const wind=(raw.windproof===true||membrane)?2:(raw.wind_resistant===true||raw.windResistant===true||raw.w===true||/soft|shell|jacket/.test(cat)?1:0);
+  let pos=Array.isArray(raw.pos)?raw.pos.map(function(p){return String(p).toLowerCase();}):[];
+  const fitRaw=String(raw.fit||'').toLowerCase();
+  let fit=/skin|base|next/.test(fitRaw)?'skin':(/mid/.test(fitRaw)?'mid':(/outer/.test(fitRaw)?'outer':''));
+  // what the engine's clo estimate needs: an insulated piece with no stated weight is treated as ~100 g synthetic (or ~4 oz down)
+  let insulation_gsm=clampNum(raw.insulation_gsm,0,1000,0)||undefined;
+  let fill_oz=clampNum(raw.fill_oz,0,40,0)||undefined;
+  if(slot==='torso'){
+    if(!pos.length){
+      if(isBaseCat) pos=['base'];
+      else if(isMidCat) pos=['mid'];
+      else if(membrane&&ins!=='none') pos=['outer'];
+      else if(membrane||/shell|rain|soft/.test(cat)) pos=['outer'];
+      else if(cat==='insulation'||ins==='down'||ins==='syn') pos=(fit==='mid')?['insul']:['insul','outer'];
+      else if(ins==='fleece') pos=['mid'];
+      else pos=['base'];
+    }
+    if(isBaseCat && pos.indexOf('base')<0) pos=['base'];
+    if(!fit) fit = pos.indexOf('base')>=0?'skin':(pos.indexOf('outer')>=0?'outer':'mid');
+    if(pos.indexOf('base')>=0 && pos.length===1) fit='skin';
+    if(cats.indexOf(cat)<0){ cat = membrane?'shell':(pos.indexOf('insul')>=0?'insulation':(pos.indexOf('mid')>=0&&pos.indexOf('base')<0?'mid':(fit==='outer'?'softshell':'base'))); }
+    if(cat==='insulation'||pos.indexOf('insul')>=0){
+      if(ins==='down'){ if(!fill_oz) fill_oz=4; }
+      else { if(ins!=='syn') ins='syn'; if(!insulation_gsm) insulation_gsm=100; }
+    }
+  } else if(slot==='legs'){
+    if(!pos.length) pos = /base|bottom|legging|tight|long ?under/.test(cat+' '+String(raw.name||'').toLowerCase()) ? ['base'] : (membrane&&ins==='none'?['overpant']:['pant']);
+    if(!fit) fit = pos.indexOf('base')>=0?'skin':'outer';
+    if(cats.indexOf(cat)<0) cat = pos.indexOf('base')>=0?'base':'pant';
+  } else {
+    pos=[]; if(!fit) fit='outer';
+    if(cats.indexOf(cat)<0) cat={head:'headwear',neck:'accessory',hands:'gloves',feet:'boots',sock:'boots',vest:'accessory',wader:'wader'}[slot]||'accessory';
   }
   let disc=raw.disciplines||raw.disc||['deer','upland','waterfowl'];
   if(!Array.isArray(disc)) disc=['deer','upland','waterfowl'];
   disc=disc.map(d=>String(d).toLowerCase()).filter(d=>['deer','upland','waterfowl'].indexOf(d)>=0);
   if(!disc.length) disc=['deer','upland','waterfowl'];
-  return {
-    name: (raw.name||name||'').toString().slice(0,60) || name,
-    cat, disc,
+  var nm=(raw.name||name||'').toString().slice(0,60) || name;
+  var it={
+    id:'custom_'+slugify(nm), name:nm, cat:cat, slot:slot, pos:pos, fit:fit, ins:ins,
+    wind:wind, wp: membrane?2:((raw.dwr||raw.water_resistant||raw.waterResistant||/soft|shell|jacket|pant/.test(cat))?1:0),
+    quiet: clampNum(raw.quiet_1_10!=null?raw.quiet_1_10:(raw.quiet===true?8:(raw.quiet===false?4:6)),1,10,6),
+    active: raw.active!==undefined?!!raw.active:(fit==='skin'||(ins!=='down'&&!(ins==='syn'&&slot==='torso'&&pos.indexOf('base')<0))),
+    combo: !!(membrane && ins!=='none' && fit!=='skin' && (slot==='torso'||slot==='legs')),
+    terminal:false, overInsul:false,
+    fabric_gsm: clampNum(raw.fabric_gsm,0,2000,0)||undefined,
+    insulation_gsm: insulation_gsm,
+    fill_oz: fill_oz,
+    w: (isFinite(+raw.weight_oz)&&+raw.weight_oz>0)?(+raw.weight_oz*0.02835):undefined,
     tmin: clampNum(raw.tempMin!=null?raw.tempMin:raw.tmin, -40, 100, 30),
-    tmax: clampNum(raw.tempMax!=null?raw.tempMax:raw.tmax, -40, 110, 60),
-    q: !!(raw.quiet!==undefined?raw.quiet:raw.q),
-    w: !!(raw.windproof!==undefined?raw.windproof:raw.w),
-    wp: !!(raw.waterproof!==undefined?raw.waterproof:raw.wp),
-    note: (raw.note||raw.placement||'').toString().slice(0,140),
+    tmax: clampNum(raw.tempMax!=null?raw.tempMax:raw.tmax, -40, 120, 60),
+    disc:disc, pattern:(raw.pattern||'').toString().slice(0,20)||'Valo',
+    note:(raw.note||raw.placement||'').toString().slice(0,140),
     custom:true
   };
+  if(it.tmin>it.tmax){ var tmp=it.tmin; it.tmin=it.tmax; it.tmax=tmp; }
+  it.clo = estimateCloSafe(it, raw);
+  return it;
+}
+function estimateCloSafe(it, raw){
+  var c=null;
+  try{ if(engineReady() && typeof FK.estimateClo==='function') c=FK.estimateClo(it); }catch(e){ c=null; }
+  if(c==null||!isFinite(c)){ c = (raw&&isFinite(+raw.clo))?+raw.clo : (it.slot==='torso'?0.3:(it.slot==='legs'?0.25:0.05)); }
+  return Math.max(0, Math.min(2, +c));
+}
+// customs stored by v1.x (cat/tmin/tmax/q/w/wp only) are upgraded to the v2 schema on load
+function upgradeCustom(x){
+  var raw;
+  if(x && x.slot && Array.isArray(x.pos) && x.clo!=null){
+    // already v2: re-normalize from its stored facts so category/role/warmth follow the current rules
+    // (an early v2 build mis-typed synthetic bases and under-rated insulated jackets). Stored pos/fit are
+    // only trusted outside base/shirt/mid, where the category decides.
+    var trustPos = !(x.cat==='base'||x.cat==='shirt'||x.cat==='mid');
+    raw={ name:x.name, category:x.cat, slot:x.slot, pos:trustPos?x.pos:undefined, fit:trustPos?x.fit:undefined,
+          insulation_type:x.ins, membrane:x.wp===2, water_resistant:x.wp===1, windproof:x.wind===2, wind_resistant:x.wind===1,
+          quiet_1_10:x.quiet, active:(x.cat==='base'||x.cat==='shirt')?undefined:x.active,
+          fabric_gsm:x.fabric_gsm, insulation_gsm:x.insulation_gsm, fill_oz:x.fill_oz, weight_oz:(x.w?x.w/0.02835:undefined),
+          tempMin:x.tmin, tempMax:x.tmax, disciplines:x.disc, note:x.note, pattern:x.pattern };
+  } else {
+    raw={ name:x.name, category:x.cat, tempMin:x.tmin, tempMax:x.tmax, quiet:!!x.q, w:!!x.w /* v1 'w' = wind-resistant (wind 1), as engine.normalizeCustom reads it */, waterproof:!!x.wp, insulation:x.insulation||x.ins||'none', disciplines:x.disc, note:x.note, pattern:x.pattern };
+  }
+  var it=normalizeItem(raw, x.name); it._upgraded=true; return it;
+}
+// a custom may not share a name with a built-in (trip set, overrides and removals are all keyed by name)
+function builtinNameClash(name){
+  var n=String(name||'').trim().toLowerCase(); if(!n||!engineReady()) return null;
+  var list=FK.CATALOG||[]; for(var i=0;i<list.length;i++){ if(String(list[i].name).toLowerCase()===n) return list[i].name; }
+  return null;
 }
 async function researchGear(name){
   document.getElementById('gearPreview').innerHTML='';
-  setAddStatus('<span class="spinner sm"></span> Researching &mdash; Claude is looking it up\u2026','busy');
+  setAddStatus('<span class="spinner sm"></span> Researching &mdash; Claude is looking it up…','busy');
   try{
     const r=await fetch('/.netlify/functions/anthropic',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name})});
     if(!r.ok){ let e={}; try{ e=await r.json(); }catch(_){} throw new Error(e.error||('HTTP '+r.status)); }
     const d=await r.json();
-    if(!d.item) throw new Error('Could not parse specs \u2014 try a more specific product name.');
+    if(!d.item) throw new Error('Could not parse specs — try a more specific product name.');
     const it=normalizeItem(d.item, name);
     setAddStatus('Found it. Review and add below.','ok');
     showGearPreview(it);
@@ -1406,109 +1251,120 @@ async function researchGear(name){
 }
 function showGearPreview(it){
   const disc=it.disc.map(d=>d[0].toUpperCase()+d.slice(1)).join(', ');
-  const tags=[it.q?'quiet':null,it.w?'windproof':null,it.wp?'waterproof':null].filter(Boolean).join(' \u00B7 ')||'\u2014';
+  const tags=[it.quiet>=8?'quiet':null,it.wind===2?'windproof':null,it.wp===2?'waterproof':null].filter(Boolean).join(' · ')||'—';
   const el=document.getElementById('gearPreview');
   el.innerHTML='<div class="preview"><div class="pn">'+esc(it.name)+'</div>'
-    +'<div class="pmeta">'+it.cat.toUpperCase()+' &nbsp;\u00B7&nbsp; '+Math.round(it.tmin)+'\u2013'+Math.round(it.tmax)+'\u00B0F &nbsp;\u00B7&nbsp; '+tags+'<br>Use: '+esc(disc)+'</div>'
+    +'<div class="pmeta">'+esc(catLabel(it.cat).toUpperCase())+' &nbsp;·&nbsp; '+esc(roleWords(it))+' &nbsp;·&nbsp; '+esc(bandText(it))+' &nbsp;·&nbsp; '+tags+'<br>Use: '+esc(disc)+'</div>'
     +(it.note?'<div class="pnote">'+esc(it.note)+'</div>':'')
     +'<div class="pbtns"><button class="btn sm" id="saveGear">Add to closet</button><button class="btn ghost sm" id="discardGear">Discard</button></div></div>';
-  document.getElementById('saveGear').onclick=()=>{ customAdd(it); el.innerHTML=''; document.getElementById('gearInput').value=''; setAddStatus('Added <b>'+esc(it.name)+'</b> to your closet.','ok'); };
+  document.getElementById('saveGear').onclick=()=>{ var res=customAdd(it); if(res===false) return; el.innerHTML=''; document.getElementById('gearInput').value=''; if(res!==true) setAddStatus('Added <b>'+esc(it.name)+'</b> to your closet.','ok'); };
   document.getElementById('discardGear').onclick=()=>{ el.innerHTML=''; setAddStatus('Discarded.','busy'); };
 }
 function customAdd(it){
+  var clash=builtinNameClash(it.name);
+  if(clash && removedMem.indexOf(clash)>=0){
+    // the name matches a built-in you DELETED: bring the built-in back instead of adding a duplicate
+    removedMem=removedMem.filter(function(n){ return n!==clash; }); lsSet('fk_removed',removedMem);
+    if(tripOn && tripSet.indexOf(clash)<0){ tripSet.push(clash); lsSet('fk_trip_set',tripSet); }
+    renderCloset(); rerender();
+    setAddStatus('<b>'+esc(clash)+'</b> was a deleted built-in piece — restored it to your closet instead of adding a copy.','ok');
+    return true;
+  }
+  if(clash){
+    setAddStatus('<b>'+esc(clash)+'</b> is already in your closet as a built-in piece. Edit that one in Edit mode, or add this under a different name (for example <b>'+esc(it.name)+' (2)</b>).','error');
+    return false;
+  }
   customMem=customMem.filter(x=>x.name.toLowerCase()!==it.name.toLowerCase());
   customMem.push(it); lsSet('fk_custom',customMem);
-  renderCloset(); if(S.windows) render();
-}
-function customRemove(name){
-  customMem=customMem.filter(x=>x.name!==name); lsSet('fk_custom',customMem);
-  renderCloset(); if(S.windows) render();
+  if(tripOn && tripSet.indexOf(it.name)<0){ tripSet.push(it.name); lsSet('fk_trip_set',tripSet); }
+  renderCloset(); rerender();
 }
 function deleteGear(name, builtin){
   if(builtin){ if(removedMem.indexOf(name)<0){ removedMem.push(name); lsSet('fk_removed',removedMem); } }
   else { customMem=customMem.filter(x=>x.name!==name); lsSet('fk_custom',customMem); }
-  // also unpack it from any trip set + drop any per-item edits
   var i=tripSet.indexOf(name); if(i>=0){ tripSet.splice(i,1); lsSet('fk_trip_set',tripSet); }
   if(overridesMem[name]){ delete overridesMem[name]; lsSet('fk_overrides', overridesMem); }
-  renderCloset(); if(S.windows||S.manual.on) render();
+  renderCloset(); rerender();
 }
 function setEditMode(on){
   editMode=!!on;
   var t=document.getElementById('editToggle'); if(t) t.setAttribute('aria-pressed', editMode);
-  var c=document.getElementById('editCap'); if(c) c.textContent = editMode ? 'ON \u2014 go to the Closet; each piece has a Delete button' : 'off';
+  var c=document.getElementById('editCap'); if(c) c.textContent = editMode ? 'ON — go to the Closet; each piece has a Delete button' : 'off';
   var b=document.getElementById('editBanner'); if(b) b.hidden=!editMode;
 }
 
-/* home spot + api test */
-function paintHome(){
-  document.getElementById('homeName').textContent = homeMem ? homeMem.name : 'none';
-}
+/* ---- setup: home spot + prefs ---- */
+function paintHome(){ document.getElementById('homeName').textContent = homeMem ? homeMem.name : 'none'; }
 function pinHome(){
   if(S.lat==null) return;
   homeMem={lat:S.lat,lon:S.lon,name:S.locName||(S.lat.toFixed(2)+', '+S.lon.toFixed(2))};
   lsSet('fk_home',homeMem); paintHome();
 }
 function clearHome(){ homeMem=null; try{localStorage.removeItem('fk_home');}catch(e){} paintHome(); }
-/* gear advisor */
+function paintPrefs(){
+  var sh=document.getElementById('sitHours'); if(sh) sh.value=String(prefs.sitHours);
+  var bz=document.getElementById('blazeToggle'); if(bz) bz.setAttribute('aria-checked', prefs.blaze?'true':'false');
+}
+function savePrefs(){ lsSet('fk_prefs', prefs); paintPrefs(); rerender(); }
+
+/* ---- gear advisor ---- */
 function ownedGearText(){
-  var lines=[];
-  var all=OWNED.filter(function(x){return !isRemoved(x.name);}).map(function(x){return withOverrides(Object.assign({},x,{custom:false}));}).concat(customItems().map(function(x){return withOverrides(Object.assign({},x,{custom:true}));}));
+  var all=currentGear();
+  var M=(engineReady()&&FK.TUNE&&FK.TUNE.met)?FK.TUNE.met:{};
+  var met=function(k,d){ var v=M[k]; return (v!=null&&isFinite(v))?(+v).toFixed(1):d; };
+  var logic='HOW THE LOADOUT LOGIC WORKS (v'+APP_VERSION+', deterministic, no AI): a warmth budget. Required warmth = air temperature + wind at the body (forecast wind scaled for timber vs open) + activity of the hunt phase (stand ~'+met('deer_sit','1.2')+' MET, walk-in ~'+met('deer_walk','2.5')+', still-hunt ~'+met('deer_still','2.0')+', upland walking ~'+met('upland','3.0')+', blind ~'+met('wf_sit','1.3')+') + sun + sit length (a longer sit raises the warmth target). Supplied warmth = ISO-style whole-body insulation of each owned piece, summed: wind strips warmth unless the OUTERMOST layer is windproof; a shell compresses a puffy; rain with no membrane on top collapses down. The quietest, lightest valid stack that meets the budget wins; picks stay coherent as temperature falls (colder only adds or upgrades, never drops). KUIU fit rules: one base, optional fleece mid, insulation, outer; outer-fit insulated jackets (Proximity, Super Down PRO, Haven) ARE the outer unless the HD Flex (sized over them) goes on top; the Haven never has anything over it; the Gale Force is the insulated waterproof outer for wet sits or dry sits at 32° and below; a membrane rain shell is mandatory in rain below 75°. Phases: walk-in vs sit kit, moving kit vs stop layer. If the closet cannot reach the budget it says so (warmest you own, about N hours) and never suggests a purchase.';
+  var lines=['USER’S OWNED GEAR (name, used-from band, worn as, best for, traits, camo):'];
   CAT_GROUPS.forEach(function(g){
     var items=all.filter(function(x){return x.cat===g[0];});
     if(!items.length) return;
     lines.push(g[1]+':');
     items.forEach(function(it){
-      var rng=(it.tmin!=null&&it.tmax!=null)?(' '+Math.round(it.tmin)+'-'+Math.round(it.tmax)+'F'):'';
-      var tags=[it.q?'quiet':null,it.w?'windproof':null,it.wp?'waterproof':null].filter(Boolean).join('/');
+      var rng=(it.tmin!=null&&it.tmax!=null)?(' '+bandText(it)):'';
+      var tags=[it.quiet>=8?'quiet':null,it.wind===2?'windproof':(it.wind===1?'wind-resistant':null),it.wp===2?'waterproof':(it.wp===1?'DWR':null),it.ins&&it.ins!=='none'?it.ins:null].filter(Boolean).join('/');
       var disc=(it.disc&&it.disc.length)?it.disc.join('/'):'all';
-      var pat = isCamoRelevant(it) ? (it.pattern||'') : '';   // base layers/socks: pattern irrelevant
-      var patStr = pat ? (' {'+pat+'}') : '';
-      lines.push('  - '+it.name+rng+' ['+disc+']'+(tags?' ('+tags+')':'')+patStr);
+      var pat = isCamoRelevant(it) ? (it.pattern||'') : '';
+      lines.push('  - '+it.name+rng+' ('+roleWords(it)+') ['+disc+']'+(tags?' ('+tags+')':'')+(pat?' {'+pat+'}':'')+(it.custom?' [added]':''));
     });
   });
-  var pattern='\nCAMO PATTERN: The user owns KUIU Valo camo for all camo-relevant outerwear (marked {Valo} above), plus two Blaze-orange pieces for gun-season visibility (marked {Blaze}). Base layers and socks are worn underneath, so camo pattern does not apply to them (no pattern shown). Treat the user as fully outfitted in Valo - do not assume they lack camo; if a piece is camo-relevant and owned, it is Valo.';
-  var logic=pattern+'\nHOW THE LOADOUT LOGIC WORKS: Deterministic engine (no AI). Three disciplines. Deer has light/medium/high activity: light reads true feels-like, medium reads feels-7 (longer damp sit), high reads feels+12 and carries insulation to pull on at stops. Slots: Base Top, Base Btm, Mid, Insul, Shell, Legs, Head, Hands, Feet, Vest. Quiet (brushed/fleece/softshell) pieces are preferred for close-range whitetail. Outer-fit down (Super Down) is never layered under a shell (it would compress); on cold static sits the insulation jacket IS the outer and no softshell goes over it. Waterproof shells lead in the wet; wind-resistant softshells lead dry. Waders are the waterfowl waterproofing; everything layers under them.';
-  return lines.join('\n')+logic;
+  var pats=ownedPatterns(all);
+  var pattern='CAMO: the user owns '+(pats.length?pats.join(' and '):'Valo')+' for every camo-relevant piece (the {pattern} tag on each line of the gear list below), plus Blaze-orange pieces for gun season. Base layers and socks are worn underneath, so pattern does not apply. Treat the user as fully outfitted in '+(pats[0]||'Valo')+'.';
+  return logic+'\n\n'+pattern+'\n\n'+lines.join('\n');
 }
 function advSetAnswer(html,kind){ var el=document.getElementById('advAnswer'); el.className='adv-answer '+(kind||''); el.classList.remove('hidden'); el.innerHTML=html; }
 function advErrHelp(err){
   var m=(err&&err.message)||String(err);
   if(/404|405/.test(m)) return 'The advisor function is not deployed. Push advisor.js to your repo (Git deploy, not drag-and-drop).';
+  if(/403|origin/i.test(m)) return 'The advisor refused this origin. Set <code>FK_ALLOWED_ORIGIN</code> in Netlify to your site URL (or unset it).';
   if(/ANTHROPIC|Key not set|api_key|401/i.test(m)) return 'Your Anthropic key is not set in Netlify env vars, or is invalid.';
   if(/Failed to fetch|network/i.test(m)) return 'Could not reach the advisor. Check your connection and that the site is deployed.';
-  return 'Advisor error: '+esc(m)+' \u2014 try again or rephrase.';
+  return 'Advisor error: '+esc(m)+' — try again or rephrase.';
 }
-// Default to the plain streaming advisor (no web search) - it has no search pauses, fits the 10s
-// function limit, and is the reliable path. The search-enabled endpoint (/api/advisor-search) exists
-// in the repo but is OFF until the Netlify Pro 26s timeout is confirmed active; flip ADV_ENDPOINT to
-// '/api/advisor-search' then. Do NOT auto-try search first: a search timeout is not a 404, so it would
-// not fall back and would just fail.
-// The KUIU-search advisor (/api/advisor-search) runs a live kuiu.com lookup, which can exceed the
-// 10s function limit unless the Netlify Pro 26s timeout is active. We TRY it first, but if it stalls
-// (no answer text before the watchdog) or fails before any text streams, we fall back to the plain
-// streaming advisor (/api/advisor) so the user always gets a good answer either way. Once you confirm
-// the 26s timeout is active, search becomes fully reliable with no visible fallback.
+// Two advisor endpoints: the KUIU-search advisor (/api/advisor-search) needs the Netlify Pro 26 s
+// timeout; the plain streaming advisor (/api/advisor) fits the default 10 s. We try search first with
+// a watchdog and fall back to plain if it stalls or is missing. Set ADV_USE_SEARCH=false to skip search.
 var ADV_SEARCH='/api/advisor-search', ADV_PLAIN='/api/advisor';
-var ADV_USE_SEARCH=true;              // set false to skip search entirely and use the plain advisor
+var ADV_USE_SEARCH=true;
 async function askAdvisor(q){
-  advSetAnswer('<span class="spinner sm"></span> Looking up KUIU specs\u2026','busy');
+  advSetAnswer('<span class="spinner sm"></span> Looking up KUIU specs…','busy');
   if(ADV_USE_SEARCH){
-    var res=await streamAdvisor(ADV_SEARCH, q, true);   // watchdog on: bail to fallback if it stalls
-    if(res===true) return;                              // search produced an answer
-    // 'missing' (404/405, search fn not deployed) or 'stalled'/'failed' before text -> fall back
-    advSetAnswer('<span class="spinner sm"></span> Claude is thinking\u2026','busy');
+    var res=await streamAdvisor(ADV_SEARCH, q, true);
+    if(res===true) return;
+    advSetAnswer('<span class="spinner sm"></span> Claude is thinking…','busy');
   }
-  await streamAdvisor(ADV_PLAIN, q, false);
+  var r2=await streamAdvisor(ADV_PLAIN, q, false);
+  if(r2!==true){
+    advSetAnswer(advErrHelp(new Error(r2==='missing'?'HTTP 404':(r2==='failed'?'The advisor returned an error before answering.':'The advisor did not answer in time.'))),'error');
+  }
 }
 async function streamAdvisor(endpoint, q, watchdog){
-  var gotText=false;                                   // has any answer text arrived yet?
+  var gotText=false;
   var ctl=(typeof AbortController!=='undefined')?new AbortController():null;
   var wd=null;
-  if(watchdog){ wd=setTimeout(function(){ if(!gotText && ctl) try{ ctl.abort(); }catch(_){} }, 9500); } // beat the 10s fn limit
+  if(watchdog){ wd=setTimeout(function(){ if(!gotText && ctl) try{ ctl.abort(); }catch(_){} }, 9500); }
   try{
     var r=await fetch(endpoint,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({ask:q, owned:ownedGearText()}), signal: ctl?ctl.signal:undefined});
     if(r.status===404||r.status===405){ if(wd) clearTimeout(wd); return 'missing'; }
-    if(!r.ok){ if(wd) clearTimeout(wd); var e={}; try{ e=await r.json(); }catch(_){} if(!gotText) return 'failed'; throw new Error(e.error||('HTTP '+r.status)); }
+    if(!r.ok){ if(wd) clearTimeout(wd); var e={}; try{ e=await r.json(); }catch(_){} if(watchdog) return 'failed'; throw new Error(e.error||('HTTP '+r.status)); }
     if(!r.body || !r.body.getReader){ var d=await r.json().catch(function(){return{};}); advSetAnswer(esc(d.answer||d.error||'No answer came back.'), d.answer?'':'error'); return true; }
     var reader=r.body.getReader(), dec=new TextDecoder(), raw='', text='', status='';
     var el=document.getElementById('advAnswer'); el.className='adv-answer'; el.classList.remove('hidden'); el.textContent='';
@@ -1516,43 +1372,42 @@ async function streamAdvisor(endpoint, q, watchdog){
       var chunk=await reader.read();
       if(chunk.done) break;
       raw+=dec.decode(chunk.value,{stream:true});
-      // split control lines (\u241F-prefixed JSON) from answer text
-      var parts=raw.split('\u241F'); text=parts[0];
+      var parts=raw.split('␟'); text=parts[0];
       for(var i=1;i<parts.length;i++){
         var nl=parts[i].indexOf('\n');
-        if(nl<0){ break; }                        // control line not complete yet
+        if(nl<0){ break; }
         var ctrl=parts[i].slice(0,nl); text+=parts[i].slice(nl+1);
-        try{ var o=JSON.parse(ctrl); if(o.status==='thinking') status='Claude is thinking\u2026'; else if(o.status==='searching') status='Looking up '+(o.query?('\u201C'+o.query+'\u201D'):'specs')+'\u2026'; else if(o.status==='reading') status='Reading results\u2026'; else if(o.status==='empty') status=''; }catch(_){}
+        try{ var o=JSON.parse(ctrl); if(o.status==='thinking') status='Claude is thinking…'; else if(o.status==='searching') status='Looking up '+(o.query?('“'+o.query+'”'):'specs')+'…'; else if(o.status==='reading') status='Reading results…'; else if(o.status==='empty') status=''; }catch(_){}
       }
       if(text.trim() && !gotText){ gotText=true; if(wd){ clearTimeout(wd); wd=null; } }
       var head = (!text.trim() && status) ? '<span class="spinner sm"></span> '+esc(status)+'\n\n' : '';
       el.innerHTML = head + esc(text);
     }
     if(wd){ clearTimeout(wd); wd=null; }
-    if(!text.trim()) return gotText?true:'stalled';    // nothing came back -> let caller fall back
+    if(!text.trim()) return gotText?true:'stalled';
     el.innerHTML=esc(text);
     return true;
   }catch(err){
     if(wd){ clearTimeout(wd); wd=null; }
-    if((err&&err.name==='AbortError') || !gotText) return 'stalled';  // stalled before text -> fall back
+    if((err&&err.name==='AbortError') || !gotText) return 'stalled';
     advSetAnswer(advErrHelp(err),'error'); return true;
   }
 }
-var ADV_EX=['Would the Kenai Ultra jacket fill a gap?','Do I have overlap I could sell?','Why skip a shell below 38 on a cold sit?'];
+var ADV_EX=['Do I have overlap I could sell?','Why no shell over the Proximity on a dry sit?','What is my cold-and-wet stand setup?'];
 function paintAdvEx(){
   var wrap=document.getElementById('advEx'); if(!wrap) return; wrap.innerHTML='';
   ADV_EX.forEach(function(q){ var btF=document.createElement('button'); btF.type='button'; btF.textContent=q; btF.onclick=function(){ document.getElementById('advInput').value=q; askAdvisor(q); }; wrap.appendChild(btF); });
 }
+
+/* ---- events ---- */
 document.getElementById('tripToggle').onclick=function(){ setTrip(!tripOn); };
-document.getElementById('tripAll').onclick=function(){ tripSet=packableNames().slice(); lsSet('fk_trip_set',tripSet); renderCloset(); if(S.windows||S.manual.on) render(); };
-document.getElementById('tripNone').onclick=function(){ tripSet=[]; lsSet('fk_trip_set',tripSet); renderCloset(); if(S.windows||S.manual.on) render(); };
-document.getElementById('tripActive').onclick=function(){ document.querySelectorAll('[data-view]').forEach(function(t){ if(t.dataset.view==='closet') t.click(); }); };
+document.getElementById('tripAll').onclick=function(){ tripSet=packableNames().slice(); lsSet('fk_trip_set',tripSet); renderCloset(); rerender(); };
+document.getElementById('tripNone').onclick=function(){ tripSet=[]; lsSet('fk_trip_set',tripSet); renderCloset(); rerender(); };
+document.getElementById('tripActive').onclick=function(){ setView('closet'); };
 document.getElementById('advGo').onclick=function(){ var v=document.getElementById('advInput').value.trim(); if(v) askAdvisor(v); };
 document.getElementById('advClear').onclick=function(){ document.getElementById('advInput').value=''; var el=document.getElementById('advAnswer'); el.className='adv-answer hidden'; el.innerHTML=''; };
 document.getElementById('advInput').addEventListener('keydown',function(e){ if((e.metaKey||e.ctrlKey)&&e.key==='Enter'){ var v=e.target.value.trim(); if(v) askAdvisor(v); } });
 paintAdvEx();
-
-/* events */
 document.getElementById('locateBtn').onclick=locate;
 document.getElementById('relocate').onclick=function(){ toggleLocPanel(); };
 document.getElementById('locGo').onclick=function(){ manualLoad(document.getElementById('locInput').value); toggleLocPanel(false); };
@@ -1562,6 +1417,7 @@ document.getElementById('startManual').onclick=startManual;
 document.getElementById('condMode').addEventListener('click',function(e){ var b=e.target.closest('button'); if(!b) return; setCondMode(b.dataset.cond); });
 ['mTempIn','mWindIn'].forEach(function(id){ document.getElementById(id).addEventListener('input',function(){ if(S.manual.on){ readManualInputs(); render(); } }); });
 document.getElementById('mWetIn').addEventListener('change',function(){ if(S.manual.on){ readManualInputs(); render(); } });
+document.getElementById('mSkyIn').addEventListener('change',function(){ if(S.manual.on){ readManualInputs(); render(); } });
 document.getElementById('errRetry').onclick=locate;
 document.getElementById('manualToggle').onclick=()=>document.getElementById('manualBox').classList.toggle('hidden');
 document.getElementById('cityGo').onclick=()=>manualLoad(document.getElementById('cityInput').value);
@@ -1573,22 +1429,27 @@ document.getElementById('gearGo').onclick=()=>{ const v=document.getElementById(
 document.getElementById('gearInput').addEventListener('keydown',e=>{ if(e.key==='Enter'){ const v=e.target.value.trim(); if(v) researchGear(v); } });
 document.getElementById('pinHome').onclick=pinHome;
 document.getElementById('clearHome').onclick=clearHome;
-(function(){
-})();
+document.getElementById('sitHours').addEventListener('change',function(e){ prefs.sitHours=clampNum(e.target.value,1,6,3); savePrefs(); });
+document.getElementById('blazeToggle').onclick=function(){ prefs.blaze=!prefs.blaze; savePrefs(); };
 document.getElementById('windowSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.win=b.dataset.win; [].forEach.call(document.querySelectorAll('#windowSeg button'),x=>x.setAttribute('aria-pressed', x===b)); render(); });
 document.getElementById('modeSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.mode=b.dataset.mode; [].forEach.call(document.querySelectorAll('#modeSeg button'),x=>x.setAttribute('aria-pressed', x===b)); render(); });
 document.getElementById('actSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.act=b.dataset.act; [].forEach.call(document.querySelectorAll('#actSeg button'),x=>x.setAttribute('aria-pressed', x===b)); render(); });
 document.getElementById('wfSeg').addEventListener('click',e=>{ const b=e.target.closest('button'); if(!b) return; S.wfEnv=b.dataset.wf; [].forEach.call(document.querySelectorAll('#wfSeg button'),x=>x.setAttribute('aria-pressed', x===b)); render(); });
 [].forEach.call(document.querySelectorAll('.tab'),t=> t.onclick=()=>setView(t.dataset.view) );
+[].forEach.call(document.querySelectorAll('.vermark'),function(el){ el.textContent='FIELD KIT v'+APP_VERSION; });
+var vt=document.getElementById('verText'); if(vt) vt.textContent='v'+APP_VERSION;
+loadCustoms();     // saved custom pieces -> v2 schema (needs every helper above to be declared)
+paintPrefs();
 
 /* startup: if a home spot is pinned, load it straight away */
 if(homeMem && homeMem.lat!=null){
   S.lat=homeMem.lat; S.lon=homeMem.lon; S.locName=homeMem.name; paintLoc(); loadWeather();
 }
 
-/* offline test hook */
-window.__inject=function(data){ S.lat=30.42; S.lon=-87.22; S.locName='Camden, AL'; paintLoc(); S.windows=buildWindows(data); only('result'); setView('loadout'); render(); };
+/* offline test hooks */
+window.__inject=function(data){ S.lat=30.42; S.lon=-87.22; S.locName='Camden, AL'; paintLoc(); S.windows=buildWindows(data); useForecast(); only('result'); setView('loadout'); render(); };
 window.__addTest=function(it){ customAdd(normalizeItem(it, it.name)); };
+window.__state=S;
 </script>
 </body>
 </html>

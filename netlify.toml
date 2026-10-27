@@ -10,3 +10,9 @@
 # Harmless on the default 10s limit: the plain streaming advisor (/api/advisor) still works there.
 [functions."advisor-search"]
   timeout = 26
+
+# Gear research (anthropic.js) runs one kuiu.com web search inside the model call, which routinely takes
+# longer than the default 10 s. Same caveat as above: 26 s only takes effect on Pro after support enables
+# it; on the default limit the research call may 502/504 on slow lookups (the app shows a retry hint).
+[functions."anthropic"]
+  timeout = 26

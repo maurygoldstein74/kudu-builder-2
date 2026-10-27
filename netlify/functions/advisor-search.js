@@ -1,72 +1,74 @@
-// KUIU Field Kit — gear advisor (STREAMING + WEB SEARCH).
-// This is the "Pro" advisor: single streaming Anthropic call WITH web_search enabled, so the
-// model can verify KUIU specs live and still stream its answer. Web search adds latency, so this
-// needs the 26s function timeout (Netlify Pro, activated via support) — on the default 10s limit
-// use advisor.js (streaming, no search) instead.
+// KUIU Field Kit v2.00 — gear advisor (STREAMING + kuiu.com WEB SEARCH).
+// The "Pro" advisor: one streaming Anthropic call with web_search restricted to kuiu.com so the model
+// can verify specs live. Web search adds latency, so this needs the 26 s function timeout (Netlify Pro,
+// activated via support). On the default 10 s limit the client falls back to advisor.js automatically.
 //
-// It emits two kinds of lines to the client so a search pause never looks frozen:
-//   status lines:  \u241F{"status":"searching"}\n   (unit-separator prefix, easy to split out)
+// Emits two kinds of lines so a search pause never looks frozen:
+//   status lines:  ␟{"status":"searching"}\n   (unit-separator prefix, split out by the client)
 //   plain text:    everything else is answer text, streamed as it arrives.
 
-const MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
-const US = "\u241F"; // unit separator: marks a control line, will never appear in prose
+import { originAllowed, advisorSystem, BODY_CAP, OWNED_CAP, ASK_CAP } from "../lib/fk-common.js";
 
-function buildSystem(owned) {
-  return [
-    "You are the gear advisor built into a KUIU-focused hunting layering app. The app recommends a weather-driven clothing loadout for whitetail (stationary stand), upland (on foot), and waterfowl (blind) hunting, drawing only from gear the user actually owns - almost entirely KUIU. Your job is to help the user decide whether a piece of gear they are considering fits their kit, and to explain the app's layering logic.",
-    "",
-    "GROUNDING RULES:",
-    "- The user's owned gear is listed at the end. Reason from THAT, not a generic wardrobe.",
-    "- Default to KUIU. When the user names a product, assume KUIU unless they say otherwise. Web search is restricted to kuiu.com, so search there for real product specs (fabric, weight, fill, temp intent, fit: base/mid/outer) from the product and collection pages. Search sparingly - one or two focused searches, not many. If a search returns nothing useful, answer from the specs you can confirm plus the user's owned kit rather than guessing numbers.",
-    "- Verify a spec before judging it; do not invent numbers.",
-    "",
-    "HOW TO ANSWER:",
-    "- NEW piece: state plainly whether it fills a real gap or duplicates something owned, name the specific owned piece it overlaps, and give the temperature band + discipline where it slots in. If it duplicates, say do not buy it.",
-    "- Two-option question (X vs Y): pick one, say why, in terms of the gap it fills in THIS kit.",
-    "- Logic question: explain the reasoning - quiet faces for close-range whitetail, waterproof vs wind-resistant, outer-fit down never under a shell, waders as waterfowl waterproofing, activity shifting the dressed-for temp.",
-    "- Be direct and opinionated, buy-once-cry-once. Never pad. A few tight paragraphs, plain text (no markdown headers).",
-    "",
-    "USER'S OWNED GEAR:",
-    owned
-  ].join("\n");
+const PRIMARY_MODEL = process.env.CLAUDE_MODEL || "claude-sonnet-5";
+const FALLBACK_MODEL = "claude-sonnet-4-6";
+const US = "␟";
+
+function searchSystem(owned) {
+  return advisorSystem(owned) + "\n\nWEB SEARCH: it is restricted to kuiu.com. Use one or two focused searches to confirm a spec (fabric, weight, fill, condition tag, fit tier) and no more; if nothing useful comes back, answer from what you can confirm plus the user's kit rather than guessing numbers.";
 }
 
 export default async (req) => {
   const json = (obj, status) => new Response(JSON.stringify(obj), { status: status || 200, headers: { "content-type": "application/json" } });
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
+  if (!originAllowed(req.headers.get("origin"), req.headers.get("referer"))) return json({ error: "Origin not allowed" }, 403);
 
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) return json({ error: "ANTHROPIC_API_KEY not set in Netlify" }, 500);
 
+  let raw = "";
+  try { raw = await req.text(); } catch (e) {}
+  if (raw.length > BODY_CAP) return json({ error: "Request too large" }, 413);
   let payload = {};
-  try { payload = await req.json(); } catch (e) {}
-  const question = (payload.ask || "").toString().slice(0, 1500).trim();
+  try { payload = JSON.parse(raw || "{}"); } catch (e) {}
+  const question = (payload.ask || "").toString().slice(0, ASK_CAP).trim();
   if (!question) return json({ error: "No question provided" }, 400);
-  const owned = (payload.owned || "").toString().slice(0, 4000);
+  const owned = (payload.owned || "").toString().slice(0, OWNED_CAP);
 
-  let upstream;
-  try {
-    upstream = await fetch("https://api.anthropic.com/v1/messages", {
+  async function callModel(model) {
+    return fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": key, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({
-        model: MODEL,
+        model: model,
         max_tokens: 2048,
         stream: true,
-        thinking: { type: "disabled" },
-        system: buildSystem(owned),
+        system: searchSystem(owned),
         messages: [{ role: "user", content: question }],
         tools: [{ type: "web_search_20250305", name: "web_search", max_uses: 3, allowed_domains: ["kuiu.com"] }]
       })
     });
+  }
+  async function errText(resp) {
+    let msg = "HTTP " + resp.status;
+    try { const d = await resp.json(); if (d && d.error && d.error.message) msg = d.error.message; } catch (e) {}
+    return msg;
+  }
+
+  // primary -> fallback on any 400/404; each error body is read once and cached
+  const ladder = [PRIMARY_MODEL].concat(FALLBACK_MODEL !== PRIMARY_MODEL ? [FALLBACK_MODEL] : []);
+  let usedModel = PRIMARY_MODEL, upstream = null, lastErr = "";
+  try {
+    for (const m of ladder) {
+      usedModel = m;
+      upstream = await callModel(m);
+      if (upstream.ok) break;
+      lastErr = await errText(upstream);
+      if (upstream.status !== 400 && upstream.status !== 404) break;
+    }
   } catch (e) {
     return json({ error: "Upstream request failed: " + (e && e.message || e) }, 502);
   }
-  if (!upstream.ok) {
-    let msg = "HTTP " + upstream.status;
-    try { const d = await upstream.json(); if (d && d.error && d.error.message) msg = d.error.message; } catch (e) {}
-    return json({ error: msg }, 502);
-  }
+  if (!upstream || !upstream.ok) return json({ error: (lastErr || ("HTTP " + (upstream ? upstream.status : "?"))) + " (model: " + usedModel + ")" }, 502);
 
   const reader = upstream.body.getReader();
   const decoder = new TextDecoder();
@@ -90,19 +92,17 @@ export default async (req) => {
             const data = s.slice(5).trim();
             if (!data || data === "[DONE]") continue;
             let evt; try { evt = JSON.parse(data); } catch (e) { continue; }
-            // text tokens
             if (evt.type === "content_block_delta" && evt.delta && evt.delta.type === "text_delta") {
               emittedText = true;
               send(evt.delta.text);
-            }
-            // a web search is starting -> tell the client so the pause is explained
-            else if (evt.type === "content_block_start" && evt.content_block && evt.content_block.type === "server_tool_use") {
+            } else if (evt.type === "content_block_start" && evt.content_block && evt.content_block.type === "server_tool_use") {
               const q = (evt.content_block.input && evt.content_block.input.query) || "";
               send(US + JSON.stringify({ status: "searching", query: q }) + "\n");
-            }
-            // search finished -> clear the status
-            else if (evt.type === "content_block_start" && evt.content_block && evt.content_block.type === "web_search_tool_result") {
+            } else if (evt.type === "content_block_start" && evt.content_block && evt.content_block.type === "web_search_tool_result") {
               send(US + JSON.stringify({ status: "reading" }) + "\n");
+            } else if (evt.type === "error" || (evt.error && evt.error.message)) {
+              send("[advisor error: " + ((evt.error && evt.error.message) || evt.message || "stream error") + "]");
+              emittedText = true;
             }
           }
         }
